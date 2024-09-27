@@ -1,3 +1,0 @@
-treamlit
-joblib
-numpy
