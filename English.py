@@ -155,9 +155,7 @@ def main():
                 st.markdown('<div class="prediction-result">Prediction: Invalid prediction value</div>', unsafe_allow_html=True)
         except Exception as e:
             st.write(f"An error occurred: {e}")
-
-    # Display the message below the button
-    st.markdown('<div style="color: red; font-size: 20px; text-align: center; font-weight: bold;">CLICK HERE TO PREDICT</div>', unsafe_allow_html=True)
+            
 
 if __name__ == '__main__':
     main()
