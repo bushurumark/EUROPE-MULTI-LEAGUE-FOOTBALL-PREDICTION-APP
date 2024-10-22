@@ -105,7 +105,7 @@ st.markdown("""
 
 # Create the web interface
 def main():
-    st.markdown('<div class="title">MULTI-LEAGUE FOOTBALL PREDICTION APP</div>', unsafe_allow_html=True)
+    st.markdown('<div class="title">EUROPE MULTI-LEAGUE FOOTBALL PREDICTION APP</div>', unsafe_allow_html=True)
 
     # Team lists by league, sorted alphabetically
     premier_league_teams = sorted(['Arsenal', 'Aston Villa', 'Bournemouth', 'Brentford', 'Brighton', 'Chelsea', 'Crystal Palace',
