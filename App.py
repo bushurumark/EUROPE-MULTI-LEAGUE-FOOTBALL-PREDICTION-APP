@@ -41,7 +41,7 @@ def compute_mean_for_teams(home_team, away_team):
                     ((data['HomeTeam'] == away_team) & (data['AwayTeam'] == home_team))]
 
     # Drop the target column 'FTR' and replace 'HTR' values
-    h2h_data = h2h_data.drop(columns=['FTR'])
+    h2h_data = h2h_data.drop(columns=['FTR','Date'])
     h2h_data['HTR'] = h2h_data['HTR'].replace({'H': 1, 'D': 2, 'A': 3})
 
     # Compute the mean for each column
