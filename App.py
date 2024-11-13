@@ -36,24 +36,15 @@ data = load_data()
 
 # Function to compute the mean of head-to-head stats for the selected teams
 def compute_mean_for_teams(home_team, away_team):
-    # Filter dataset for matches where the selected home team was actually at home against the selected away team
     h2h_data = data[(data['HomeTeam'] == home_team) & (data['AwayTeam'] == away_team)]
-
-    # Check if there is any head-to-head data available for the specific home/away roles
     if h2h_data.empty:
         st.error(f"No historical data available with {home_team} as the home team and {away_team} as the away team.")
-        return None  # Return None if no data is available
+        return None
 
-    # Drop non-numeric columns including 'FTR', 'Date', 'HomeTeam', and 'AwayTeam'
     h2h_data = h2h_data.drop(columns=['FTR', 'Date', 'HomeTeam', 'AwayTeam'], errors='ignore')
-
-    # Replace 'HTR' values with numeric codes for mean calculation
     h2h_data['HTR'] = h2h_data['HTR'].replace({'H': 1, 'D': 2, 'A': 3})
-
-    # Compute the mean for each numeric column
     mean_data = h2h_data.mean(numeric_only=True)
 
-    # Map the HTR mean back to categorical ('H', 'D', 'A') based on specified ranges
     if 'HTR' in mean_data:
         if 0 <= mean_data['HTR'] <= 1.4:
             mean_data['HTR'] = 'H'
@@ -62,33 +53,22 @@ def compute_mean_for_teams(home_team, away_team):
         elif 2.5 <= mean_data['HTR'] <= 3.4:
             mean_data['HTR'] = 'A'
 
-    # Convert mean_data to DataFrame format
     input_data = pd.DataFrame([mean_data])
-
-    # Ensure input_data has the same columns as the model's expected features
     model_features = model.feature_names_in_
     for feature in model_features:
         if feature not in input_data.columns:
-            input_data[feature] = 0  # Add missing columns with default value 0
-
-    # Reorder columns to match the model's feature order
+            input_data[feature] = 0
     input_data = input_data[model_features]
 
     return input_data
 
 # Prediction function
 def predict_with_h2h_data(home_team, away_team):
-    # Get mean data for head-to-head matches
     input_data = compute_mean_for_teams(home_team, away_team)
-
-    # Check if input_data is None (meaning no H2H data was available)
     if input_data is None:
-        return  # Stop the prediction if no data is available
+        return
 
-    # Make prediction using the model
     prediction = model.predict(input_data)[0]
-
-    # Display prediction
     if 0.5 <= prediction <= 1.4:
         st.markdown('<div class="prediction-result">🏆 Prediction: Home Team Win</div>', unsafe_allow_html=True)
     elif 1.5 <= prediction <= 2.4:
@@ -98,7 +78,7 @@ def predict_with_h2h_data(home_team, away_team):
     else:
         st.markdown('<div class="prediction-result">❗ Prediction: Invalid prediction value</div>', unsafe_allow_html=True)
 
-# CSS Styling
+# CSS Styling with red labels
 st.markdown("""
     <style>
     /* Set the app background to blue */
@@ -107,25 +87,25 @@ st.markdown("""
     }
     /* Title styling */
     .title {
-        color: #32CD32; /* Lime green for contrast */
+        color: #32CD32;
         text-align: center;
         font-size: 40px;
     }
     /* Dropdown label styling */
     label {
-        color: #FFD700 !important; /* Gold color contrasting with blue */
+        color: red !important; /* Red color for labels */
         font-weight: bold;
     }
     /* Dropdown styling */
     .stSelectbox {
-        color: #00008B; /* Dark blue text color contrasting with dropdown background */
-        background-color: #ADD8E6; /* Light blue background for dropdown */
+        color: #00008B;
+        background-color: #ADD8E6;
         border-radius: 10px;
-        border: 2px solid #32CD32; /* Lime green border to distinguish */
+        border: 2px solid #32CD32;
     }
     /* Button styling */
     .stButton button {
-        background-color: #FFD700; /* Gold color */
+        background-color: #FFD700;
         color: black;
         font-size: 20px;
         border-radius: 10px;
@@ -145,7 +125,6 @@ st.markdown("""
 def main():
     st.markdown('<div class="title">MULTI-LEAGUE FOOTBALL PREDICTION APP</div>', unsafe_allow_html=True)
 
-    # Leagues and teams data (as in the original code)
     leagues = {
         "Premier League": sorted(['Arsenal', 'Aston Villa', 'Bournemouth', 'Brentford', 'Brighton', 'Chelsea', 'Crystal Palace',
                                   'Everton', 'Fulham', 'Ipswich', 'Leicester', 'Liverpool', 'Man City', 'Man United', 'Newcastle',
