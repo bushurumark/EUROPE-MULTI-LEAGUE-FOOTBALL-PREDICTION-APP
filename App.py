@@ -68,7 +68,7 @@ def calculate_team_form(team, last_n_matches=5):
     return sum(form) / len(form) if form else 0
 
 # Function to compute the mean of head-to-head stats for the selected teams
-def compute_mean_for_teams(home_team, away_team, home_injuries=0, away_injuries=0):
+def compute_mean_for_teams(home_team, away_team):
     h2h_data = data[(data['HomeTeam'] == home_team) & (data['AwayTeam'] == away_team)]
     if h2h_data.empty:
         st.error(f"No historical data available with {home_team} as the home team and {away_team} as the away team.")
@@ -78,13 +78,11 @@ def compute_mean_for_teams(home_team, away_team, home_injuries=0, away_injuries=
     h2h_data['HTR'] = h2h_data['HTR'].replace({'H': 1, 'D': 2, 'A': 3})
     mean_data = h2h_data.mean(numeric_only=True)
 
-    # Add team form and injuries to the input data
+    # Add team form to the input data
     home_form = calculate_team_form(home_team)
     away_form = calculate_team_form(away_team)
     mean_data['HomeForm'] = home_form
     mean_data['AwayForm'] = away_form
-    mean_data['HomeInjuries'] = home_injuries
-    mean_data['AwayInjuries'] = away_injuries
 
     if 'HTR' in mean_data:
         if HOME_WIN_RANGE[0] <= mean_data['HTR'] <= HOME_WIN_RANGE[1]:
@@ -147,35 +145,8 @@ def determine_final_prediction(model_prediction, probabilities):
     else:
         return f"{model_outcome} or {highest_prob_outcome}"
 
-# Function to collect user feedback
-def collect_feedback(home_team, away_team, prediction, feedback):
-    import datetime
-    feedback_data = {
-        "Timestamp": datetime.datetime.now(),
-        "HomeTeam": home_team,
-        "AwayTeam": away_team,
-        "Prediction": prediction,
-        "Feedback": feedback
-    }
-    feedback_df = pd.DataFrame([feedback_data])
-    feedback_df.to_csv("feedback.csv", mode="a", header=not os.path.exists("feedback.csv"), index=False)
-
-# Function to display feedback section
-def display_feedback_section(home_team, away_team, prediction):
-    st.markdown("---")
-    st.markdown("### Was this prediction helpful?")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("👍 Thumbs Up"):
-            collect_feedback(home_team, away_team, prediction, "Thumbs Up")
-            st.success("Thank you for your feedback!")
-    with col2:
-        if st.button("👎 Thumbs Down"):
-            collect_feedback(home_team, away_team, prediction, "Thumbs Down")
-            st.error("We appreciate your feedback. We'll try to improve!")
-
 # Main prediction function
-def predict_with_custom_logic(home_team, away_team, home_injuries, away_injuries):
+def predict_with_custom_logic(home_team, away_team):
     if home_team == away_team:
         st.error("Home team and away team cannot be the same. Please select different teams.")
         return
@@ -186,7 +157,7 @@ def predict_with_custom_logic(home_team, away_team, home_injuries, away_injuries
             return
 
     with st.spinner("Preparing data for prediction..."):
-        input_data = compute_mean_for_teams(home_team, away_team, home_injuries, away_injuries)
+        input_data = compute_mean_for_teams(home_team, away_team)
         if input_data is None:
             return
 
@@ -216,9 +187,6 @@ def predict_with_custom_logic(home_team, away_team, home_injuries, away_injuries
     st.markdown('<div style="font-size: 20px; color: #FF4500; font-weight: bold; text-align: center;">Historical Probabilities:</div>', unsafe_allow_html=True)
     for outcome, prob in probabilities.items():
         st.markdown(f'<div style="font-size: 18px; text-align: center;">{outcome}: {prob:.2f}%</div>', unsafe_allow_html=True)
-
-    # Display feedback section
-    display_feedback_section(home_team, away_team, final_prediction)
 
 # CSS Styling
 st.markdown("""
@@ -313,12 +281,8 @@ def main():
     home_team = st.selectbox("Select a Home Team", options=leagues[league_name])
     away_team = st.selectbox("Select an Away Team", options=[team for team in leagues[league_name] if team != home_team])
 
-    st.markdown("### Injuries and Suspensions")
-    home_injuries = st.number_input(f"Number of injured/suspended players for {home_team}", min_value=0, value=0)
-    away_injuries = st.number_input(f"Number of injured/suspended players for {away_team}", min_value=0, value=0)
-
     if st.button("Predict Match Outcome"):
-        predict_with_custom_logic(home_team, away_team, home_injuries, away_injuries)
+        predict_with_custom_logic(home_team, away_team)
 
 if __name__ == '__main__':
     main()
