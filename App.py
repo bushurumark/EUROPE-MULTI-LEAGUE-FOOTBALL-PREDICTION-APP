@@ -8,37 +8,69 @@ Original file is located at
 """
 
 #pip install streamlit
-
+# pip install streamlit pandas joblib gdown plotly
 import streamlit as st
 import pandas as pd
 import joblib
 import gdown
 import plotly.express as px
+import os
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 
-# Download the model from Google Drive and cache it to avoid re-downloading
-@st.cache_data
+# Constants for prediction ranges
+HOME_WIN_RANGE = (0.5, 1.4)
+DRAW_RANGE = (1.5, 2.4)
+AWAY_WIN_RANGE = (2.5, 3.4)
+
+# Download the model from Google Drive and cache it
+@st.cache_resource
 def download_model():
-    url = 'https://drive.google.com/uc?id=1uchT3FyZuGOBv9LTbxbm9gTynoWZ8HGk'
+    model_url = os.getenv('MODEL_URL', 'https://drive.google.com/uc?id=1uchT3FyZuGOBv9LTbxbm9gTynoWZ8HGk')
     output = 'model.pkl'
-    gdown.download(url, output, quiet=False)
-    model = joblib.load(output)
-    return model
+    gdown.download(model_url, output, quiet=False)
+    return joblib.load(output)
 
 # Load data from Google Drive and cache it
 @st.cache_data
 def load_data():
-    url = 'https://drive.google.com/uc?id=1KTBInSLqNxHVGXljCqZv9Tks-3dHqiUI'
+    data_url = os.getenv('DATA_URL', 'https://drive.google.com/uc?id=1KTBInSLqNxHVGXljCqZv9Tks-3dHqiUI')
     output = 'football_data.csv'
-    gdown.download(url, output, quiet=False)
+    gdown.download(data_url, output, quiet=False)
     return pd.read_csv(output)
 
 # Load model and data
 model = download_model()
 data = load_data()
 
+# Function to calculate team form
+def calculate_team_form(team, last_n_matches=5):
+    team_matches = data[(data['HomeTeam'] == team) | (data['AwayTeam'] == team)]
+    team_matches = team_matches.tail(last_n_matches)
+
+    if team_matches.empty:
+        return None
+
+    form = []
+    for _, row in team_matches.iterrows():
+        if row['HomeTeam'] == team:
+            if row['FTR'] == 'H':
+                form.append(3)  # Win
+            elif row['FTR'] == 'D':
+                form.append(1)  # Draw
+            else:
+                form.append(0)  # Loss
+        else:
+            if row['FTR'] == 'A':
+                form.append(3)  # Win
+            elif row['FTR'] == 'D':
+                form.append(1)  # Draw
+            else:
+                form.append(0)  # Loss
+
+    return sum(form) / len(form) if form else 0
+
 # Function to compute the mean of head-to-head stats for the selected teams
-def compute_mean_for_teams(home_team, away_team):
+def compute_mean_for_teams(home_team, away_team, home_injuries=0, away_injuries=0):
     h2h_data = data[(data['HomeTeam'] == home_team) & (data['AwayTeam'] == away_team)]
     if h2h_data.empty:
         st.error(f"No historical data available with {home_team} as the home team and {away_team} as the away team.")
@@ -48,12 +80,20 @@ def compute_mean_for_teams(home_team, away_team):
     h2h_data['HTR'] = h2h_data['HTR'].replace({'H': 1, 'D': 2, 'A': 3})
     mean_data = h2h_data.mean(numeric_only=True)
 
+    # Add team form and injuries to the input data
+    home_form = calculate_team_form(home_team)
+    away_form = calculate_team_form(away_team)
+    mean_data['HomeForm'] = home_form
+    mean_data['AwayForm'] = away_form
+    mean_data['HomeInjuries'] = home_injuries
+    mean_data['AwayInjuries'] = away_injuries
+
     if 'HTR' in mean_data:
-        if 0 <= mean_data['HTR'] <= 1.4:
+        if HOME_WIN_RANGE[0] <= mean_data['HTR'] <= HOME_WIN_RANGE[1]:
             mean_data['HTR'] = 'H'
-        elif 1.5 <= mean_data['HTR'] <= 2.4:
+        elif DRAW_RANGE[0] <= mean_data['HTR'] <= DRAW_RANGE[1]:
             mean_data['HTR'] = 'D'
-        elif 2.5 <= mean_data['HTR'] <= 3.4:
+        elif AWAY_WIN_RANGE[0] <= mean_data['HTR'] <= AWAY_WIN_RANGE[1]:
             mean_data['HTR'] = 'A'
 
     input_data = pd.DataFrame([mean_data])
@@ -67,20 +107,17 @@ def compute_mean_for_teams(home_team, away_team):
 
 # Function to calculate win probabilities based on historical data
 def calculate_probabilities(home_team, away_team):
-    # Filter historical matches
     h2h_data = data[(data['HomeTeam'] == home_team) & (data['AwayTeam'] == away_team)]
 
     if h2h_data.empty:
         st.error(f"No historical data available with {home_team} as the home team and {away_team} as the away team.")
         return None
 
-    # Count outcomes
     total_matches = len(h2h_data)
-    home_wins = (h2h_data['FTR'] == 'H').sum()  # Home team wins
-    draws = (h2h_data['FTR'] == 'D').sum()      # Draws
-    away_wins = (h2h_data['FTR'] == 'A').sum()  # Away team wins
+    home_wins = (h2h_data['FTR'] == 'H').sum()
+    draws = (h2h_data['FTR'] == 'D').sum()
+    away_wins = (h2h_data['FTR'] == 'A').sum()
 
-    # Calculate probabilities
     home_win_prob = (home_wins / total_matches) * 100 if total_matches > 0 else 0
     draw_prob = (draws / total_matches) * 100 if total_matches > 0 else 0
     away_win_prob = (away_wins / total_matches) * 100 if total_matches > 0 else 0
@@ -90,102 +127,77 @@ def calculate_probabilities(home_team, away_team):
         "Draw": draw_prob,
         "Away Team Win": away_win_prob
     }
-# Adjusted function to handle model vs. probability discrepancies
+
+# Function to determine the final prediction
 def determine_final_prediction(model_prediction, probabilities):
-    # Map model predictions to outcomes
-    if 0.5 <= model_prediction <= 1.4:
+    if HOME_WIN_RANGE[0] <= model_prediction <= HOME_WIN_RANGE[1]:
         model_outcome = "Home Team Win"
-    elif 1.5 <= model_prediction <= 2.4:
+    elif DRAW_RANGE[0] <= model_prediction <= DRAW_RANGE[1]:
         model_outcome = "Draw"
-    elif 2.5 <= model_prediction <= 3.4:
+    elif AWAY_WIN_RANGE[0] <= model_prediction <= AWAY_WIN_RANGE[1]:
         model_outcome = "Away Team Win"
     else:
         return "❗ Invalid prediction value"
-    # Find the historical outcome with the highest probability
-    highest_prob_outcome = max(probabilities, key=probabilities.get)
-    highest_prob_value = probabilities[highest_prob_outcome]
-    # Handle scenarios where probabilities are tied
-    tied_outcomes = [outcome for outcome, prob in probabilities.items() if prob == highest_prob_value]
 
-    # Case 1: Model and highest probability match
+    highest_prob_outcome = max(probabilities, key=probabilities.get)
+    tied_outcomes = [outcome for outcome, prob in probabilities.items() if prob == probabilities[highest_prob_outcome]]
+
     if model_outcome == highest_prob_outcome:
         return model_outcome
-    # Case 2: If probabilities tie, adjust based on model's prediction
     elif len(tied_outcomes) > 1:
-        if model_outcome == "Home Team Win" and "Draw" in tied_outcomes:
-            return "Home or Draw"  # Prioritize the model prediction
-        elif model_outcome == "Home Team Win" and "Away Team Win" in tied_outcomes:
-            return "Home or Away"  # Prioritize the model prediction
-        elif model_outcome == "Draw" and "Home Team Win" in tied_outcomes:
-            return "Draw or Home"
-        elif model_outcome == "Draw" and "Away Team Win" in tied_outcomes:
-            return "Draw or Away"
-        elif model_outcome == "Away Team Win" and "Draw" in tied_outcomes:
-            return "Away or Draw"
-        elif model_outcome == "Away Team Win" and "Home Team Win" in tied_outcomes:
-            return "Away or Home"
-        else:
-            return model_outcome  # Return the model's prediction if tie resolution doesn't apply.
-    # Case 3: Model prediction doesn't match the highest probability
+        return f"{model_outcome} or {highest_prob_outcome}"
     else:
-        if model_outcome == "Home Team Win":
-            if highest_prob_outcome == "Draw":
-                return "Home or Draw"
-            elif highest_prob_outcome == "Away Team Win":
-                return "Home or Away"
-        elif model_outcome == "Away Team Win":
-            if highest_prob_outcome == "Draw":
-                return "Away or Draw"
-            elif highest_prob_outcome == "Home Team Win":
-                return "Away or Home"
-        elif model_outcome == "Draw":
-            if highest_prob_outcome == "Home Team Win":
-                return "Draw or Home"
-            elif highest_prob_outcome == "Away Team Win":
-                return "Draw or Away"
+        return f"{model_outcome} or {highest_prob_outcome}"
 
-    return "❗ Unexpected outcome"
-    # Decision logic
-    if model_outcome == highest_historical_outcome:
-        # Model's prediction aligns with the highest probability outcome
-        return model_outcome
-    elif model_outcome == "Home Team Win":
-        if highest_historical_outcome == "Draw":
-            return "Home or Draw"
-        elif highest_historical_outcome == "Away Team Win":
-            return "Home or Away"
-    elif model_outcome == "Away Team Win":
-        if highest_historical_outcome == "Draw":
-            return "Away or Draw"
-        elif highest_historical_outcome == "Home Team Win":
-            return "Away or Home"
-    elif model_outcome == "Draw":
-        if highest_historical_outcome == "Home Team Win":
-            return "Draw or Home"
-        elif highest_historical_outcome == "Away Team Win":
-            return "Draw or Away"
+# Function to collect user feedback
+def collect_feedback(home_team, away_team, prediction, feedback):
+    import datetime
+    feedback_data = {
+        "Timestamp": datetime.datetime.now(),
+        "HomeTeam": home_team,
+        "AwayTeam": away_team,
+        "Prediction": prediction,
+        "Feedback": feedback
+    }
+    feedback_df = pd.DataFrame([feedback_data])
+    feedback_df.to_csv("feedback.csv", mode="a", header=not os.path.exists("feedback.csv"), index=False)
 
-    return "❗ Unexpected outcome"
-# Prediction function with final logic
-def predict_with_custom_logic(home_team, away_team):
-    # Calculate historical probabilities
-    probabilities = calculate_probabilities(home_team, away_team)
-    if probabilities is None:
-        return
-    # Generate input data for the model
-    input_data = compute_mean_for_teams(home_team, away_team)
-    if input_data is None:
+# Function to display feedback section
+def display_feedback_section(home_team, away_team, prediction):
+    st.markdown("---")
+    st.markdown("### Was this prediction helpful?")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("👍 Thumbs Up"):
+            collect_feedback(home_team, away_team, prediction, "Thumbs Up")
+            st.success("Thank you for your feedback!")
+    with col2:
+        if st.button("👎 Thumbs Down"):
+            collect_feedback(home_team, away_team, prediction, "Thumbs Down")
+            st.error("We appreciate your feedback. We'll try to improve!")
+
+# Main prediction function
+def predict_with_custom_logic(home_team, away_team, home_injuries, away_injuries):
+    if home_team == away_team:
+        st.error("Home team and away team cannot be the same. Please select different teams.")
         return
 
-    # Model prediction
-    model_prediction = model.predict(input_data)[0]
-    # Determine the final prediction
-    final_prediction = determine_final_prediction(model_prediction, probabilities)
+    with st.spinner("Calculating probabilities..."):
+        probabilities = calculate_probabilities(home_team, away_team)
+        if probabilities is None:
+            return
 
-    # Display results
+    with st.spinner("Preparing data for prediction..."):
+        input_data = compute_mean_for_teams(home_team, away_team, home_injuries, away_injuries)
+        if input_data is None:
+            return
+
+    with st.spinner("Making prediction..."):
+        model_prediction = model.predict(input_data)[0]
+        final_prediction = determine_final_prediction(model_prediction, probabilities)
+
     st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final_prediction}</div>', unsafe_allow_html=True)
 
-    # Visualize probabilities
     colors = {
         "Home Team Win": "green",
         "Draw": "yellow",
@@ -201,37 +213,33 @@ def predict_with_custom_logic(home_team, away_team):
     )
     st.plotly_chart(fig)
 
-    # Display probabilities
     st.markdown('<div style="font-size: 20px; color: #FF4500; font-weight: bold; text-align: center;">Historical Probabilities:</div>', unsafe_allow_html=True)
     for outcome, prob in probabilities.items():
         st.markdown(f'<div style="font-size: 18px; text-align: center;">{outcome}: {prob:.2f}%</div>', unsafe_allow_html=True)
 
+    display_feedback_section(home_team, away_team, final_prediction)
+
 # CSS Styling
 st.markdown("""
     <style>
-    /* Set the app background to blue */
     .stApp {
         background-color: #0000FF;
     }
-    /* Title styling */
     .title {
         color: #32CD32;
         text-align: center;
         font-size: 40px;
     }
-    /* Dropdown label styling */
     label {
-        color: red !important; /* Red color for labels */
+        color: red !important;
         font-weight: bold;
     }
-    /* Dropdown styling */
     .stSelectbox {
         color: #00008B;
         background-color: #ADD8E6;
         border-radius: 10px;
         border: 2px solid #32CD32;
     }
-    /* Button styling */
     .stButton button {
         background-color: #FFD700;
         color: black;
@@ -239,7 +247,6 @@ st.markdown("""
         border-radius: 10px;
         padding: 10px 20px;
     }
-    /* Prediction result styling */
     .prediction-result {
         color: #FF4500;
         font-size: 30px;
@@ -257,9 +264,9 @@ def main():
         "Premier League": sorted(['Arsenal', 'Aston Villa', 'Bournemouth', 'Brentford', 'Brighton', 'Chelsea', 'Crystal Palace',
                                   'Everton', 'Fulham', 'Ipswich', 'Leicester', 'Liverpool', 'Man City', 'Man United', 'Newcastle',
                                   "Nott'm Forest", 'Southampton', 'Tottenham', 'West Ham', 'Wolves']),
-        "English Championship" : sorted(['Blackburn', 'Derby', 'Preston', 'Sheffield United', 'Cardiff', 'Sunderland','Hull',
-                                         'Bristol City', 'Leeds', 'Portsmouth', 'Middlesbrough', 'Swansea','Millwall', 'Watford',
-                                         'Oxford', 'Norwich', 'QPR', 'West Brom', 'Stoke','Coventry', 'Sheffield Weds', 'Plymouth',
+        "English Championship": sorted(['Blackburn', 'Derby', 'Preston', 'Sheffield United', 'Cardiff', 'Sunderland', 'Hull',
+                                         'Bristol City', 'Leeds', 'Portsmouth', 'Middlesbrough', 'Swansea', 'Millwall', 'Watford',
+                                         'Oxford', 'Norwich', 'QPR', 'West Brom', 'Stoke', 'Coventry', 'Sheffield Weds', 'Plymouth',
                                          'Luton', 'Burnley']),
         "Serie A": sorted(['Atalanta', 'Bologna', 'Cagliari', 'Como', 'Empoli', 'Fiorentina', 'Genoa', 'Inter',
                            'Juventus', 'Lazio', 'Lecce', 'Milan', 'Monza', 'Napoli', 'Parma', 'Roma', 'Torino',
@@ -303,10 +310,14 @@ def main():
 
     league_name = st.selectbox("Select a League", options=list(leagues.keys()))
     home_team = st.selectbox("Select a Home Team", options=leagues[league_name])
-    away_team = st.selectbox("Select an Away Team", options=leagues[league_name])
+    away_team = st.selectbox("Select an Away Team", options=[team for team in leagues[league_name] if team != home_team])
+
+    st.markdown("### Injuries and Suspensions")
+    home_injuries = st.number_input(f"Number of injured/suspended players for {home_team}", min_value=0, value=0)
+    away_injuries = st.number_input(f"Number of injured/suspended players for {away_team}", min_value=0, value=0)
 
     if st.button("Predict Match Outcome"):
-        predict_with_custom_logic(home_team, away_team)
+        predict_with_custom_logic(home_team, away_team, home_injuries, away_injuries)
 
 if __name__ == '__main__':
     main()
