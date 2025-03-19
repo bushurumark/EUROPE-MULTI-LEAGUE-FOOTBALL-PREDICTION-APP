@@ -8,7 +8,7 @@ Original file is located at
 """
 
 #pip install streamlit
-# pip install streamlit pandas joblib gdown plotly
+# pip install streamlit pandas job
 import streamlit as st
 import pandas as pd
 import joblib
@@ -198,14 +198,15 @@ def predict_with_custom_logic(home_team, away_team, home_injuries, away_injuries
 
     st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final_prediction}</div>', unsafe_allow_html=True)
 
+    # Visualize probabilities
     colors = {
         "Home Team Win": "green",
         "Draw": "yellow",
         "Away Team Win": "red",
     }
     fig = px.bar(
-        x=list(probabilities.keys()),
-        y=list(probabilities.values()),
+        x=list(probabilities.keys()),  # Fix: Remove extra parentheses
+        y=list(probabilities.values()),  # Fix: Remove extra parentheses
         labels={'x': 'Outcome', 'y': 'Probability (%)'},
         title="Match Outcome Probabilities",
         color=list(probabilities.keys()),
@@ -213,10 +214,12 @@ def predict_with_custom_logic(home_team, away_team, home_injuries, away_injuries
     )
     st.plotly_chart(fig)
 
+    # Display probabilities
     st.markdown('<div style="font-size: 20px; color: #FF4500; font-weight: bold; text-align: center;">Historical Probabilities:</div>', unsafe_allow_html=True)
     for outcome, prob in probabilities.items():
         st.markdown(f'<div style="font-size: 18px; text-align: center;">{outcome}: {prob:.2f}%</div>', unsafe_allow_html=True)
 
+    # Display feedback section
     display_feedback_section(home_team, away_team, final_prediction)
 
 # CSS Styling
