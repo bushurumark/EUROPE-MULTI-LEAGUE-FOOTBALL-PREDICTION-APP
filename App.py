@@ -28,10 +28,10 @@ def download_model():
 # Load data from Google Drive and cache it
 @st.cache_data
 def load_data():
-    url = 'https://drive.google.com/uc?id=1KTBInSLqNxHVGXljCqZv9Tks-3dHqiUI'
-    output = 'football_data.csv'
+    url = 'https://drive.google.com/uc?id=1XQhKB_utut1FUIpVV3_F6WrQq3514kmj'
+    output = 'football_data.xlsx'
     gdown.download(url, output, quiet=False)
-    return pd.read_csv(output)
+    return pd.read_excel(output)
 
 # Load model and data
 model = download_model()
@@ -271,6 +271,9 @@ def main():
         "Ligue1": sorted(['Angers', 'Auxerre', 'Brest', 'Lens', 'Le Havre', 'Lille', 'Lyon', 'Marseille',
                           'Monaco', 'Montpellier', 'Nantes', 'Nice', 'Paris SG', 'Reims', 'Rennes',
                           'St Etienne', 'Strasbourg', 'Toulouse']),
+        "French Division Two": sorted(['Ajaccio', 'Rodez', 'Amiens', 'Red Star', 'Clermont', 'Pau FC', 'Dunkerque', 
+                                       'Annecy', 'Grenoble', 'Laval', 'Guingamp', 'Troyes', 'Caen', 'Paris FC', 
+                                       'Martigues', 'Lorient', 'Metz', 'Bastia']),
         "La Liga": sorted(['Alaves', 'Ath Bilbao', 'Ath Madrid', 'Barcelona', 'Betis', 'Celta', 'Espanol', 'Getafe',
                            'Girona', 'Las Palmas', 'Leganes', 'Mallorca', 'Osasuna', 'Real Madrid', 'Sevilla', 'Sociedad',
                            'Valencia', 'Valladolid', 'Vallecano', 'Villarreal']),
@@ -284,6 +287,9 @@ def main():
         "Bundesliga": sorted(['Augsburg', 'Bayern Munich', 'Bochum', 'Dortmund', 'Ein Frankfurt', 'Freiburg',
                               'Heidenheim', 'Hoffenheim', 'Holstein Kiel', 'Leverkusen', 'M\'gladbach', 'Mainz', 'RB Leipzig',
                               'St Pauli', 'Stuttgart', 'Union Berlin', 'Werder Bremen', 'Wolfsburg']),
+        "Germany Division Two": sorted(['Hamburg', 'Schalke 04', 'Hannover', 'Elversberg', 'Kaiserslautern', 'St Pauli', 'Osnabruck', 
+                                        'Karlsruhe', 'Wehen', 'Magdeburg', 'Fortuna Dusseldorf', 'Hertha', 'Braunschweig', 'Holstein Kiel', 
+                                        'Greuther Furth', 'Paderborn', 'Hansa Rostock', 'Nurnberg']),
         "Scottish League": sorted(['Aberdeen', 'Celtic', 'Dundee', 'Dundee United', 'Hearts', 'Hibernian', 'Kilmarnock',
                                     'Motherwell', 'Rangers', 'Ross County', 'St Johnstone', 'St Mirren']),
         "Belgium League": sorted(['Anderlecht', 'Antwerp', 'Beerschot VA', 'Cercle Brugge', 'Charleroi', 'Club Brugge',
