@@ -186,24 +186,43 @@ def predict_with_custom_logic(home_team, away_team):
     st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final_prediction}</div>', unsafe_allow_html=True)
 
     # Visualize probabilities
+if probabilities:
     colors = {
         "Home Team Win": "green",
         "Draw": "yellow",
         "Away Team Win": "red",
     }
+    
+    # Debug output
+    st.write("Probabilities data:", probabilities)
+    
+    # Create DataFrame
     prob_df = pd.DataFrame({
         'Outcome': list(probabilities.keys()),
         'Probability': list(probabilities.values())
     })
-    fig = px.bar(
-        prob_df,
-        x='Outcome',
-        y='Probability',
-        color='Outcome',
-        color_discrete_map=colors,
-        title="Match Outcome Probabilities"
-    )
-    st.plotly_chart(fig)
+    
+    # Debug output
+    st.write("DataFrame for visualization:", prob_df)
+    
+    # Create plot with explicit settings
+    try:
+        fig = px.bar(
+            prob_df,
+            x='Outcome',
+            y='Probability',
+            color='Outcome',
+            color_discrete_map=colors,
+            title="Match Outcome Probabilities",
+            height=500,
+            text='Probability',
+            labels={'Probability': 'Probability (%)'}
+        )
+        fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+        fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error creating visualization: {str(e)}")
 
     # Display probabilities
     st.markdown('<div style="font-size: 20px; color: #FF4500; font-weight: bold; text-align: center;">Historical Probabilities:</div>', unsafe_allow_html=True)
