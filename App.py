@@ -191,13 +191,17 @@ def predict_with_custom_logic(home_team, away_team):
         "Draw": "yellow",
         "Away Team Win": "red",
     }
+    prob_df = pd.DataFrame({
+        'Outcome': list(probabilities.keys()),
+        'Probability': list(probabilities.values())
+    })
     fig = px.bar(
-        x=list(probabilities.keys()),
-        y=list(probabilities.values()),
-        labels={'x': 'Outcome', 'y': 'Probability (%)'},
-        title="Match Outcome Probabilities",
-        color=list(probabilities.keys()),
-        color_discrete_map=colors
+        prob_df,
+        x='Outcome',
+        y='Probability',
+        color='Outcome',
+        color_discrete_map=colors,
+        title="Match Outcome Probabilities"
     )
     st.plotly_chart(fig)
 
