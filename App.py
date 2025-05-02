@@ -10,7 +10,6 @@ Original file is located at
 #pip install streamlit
 
 import streamlit as st
-import openpyxl
 import pandas as pd
 import joblib
 import gdown
@@ -29,10 +28,10 @@ def download_model():
 # Load data from Google Drive and cache it
 @st.cache_data
 def load_data():
-    url = 'https://drive.google.com/uc?id=1XQhKB_utut1FUIpVV3_F6WrQq3514kmj'
-    output = 'football_data.xlsx'
+    url = 'https://drive.google.com/uc?id=1Xu3bpecWmhd0ZE9P2oLaalce9nTBV5Zx'
+    output = 'football_data.csv'
     gdown.download(url, output, quiet=False)
-    return pd.read_excel(output)
+    return pd.read_csv(output)
 
 # Load model and data
 model = download_model()
