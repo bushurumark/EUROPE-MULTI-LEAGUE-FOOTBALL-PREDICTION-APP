@@ -11,71 +11,73 @@ Original file is located at
 
 # backend.py
 
+import os
 import pandas as pd
 import joblib
-import gdown
-import streamlit as st
+import requests
 
-@st.cache_data
+# Replace these with your actual raw GitHub URLs
+MODEL1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model1.pkl"
+MODEL2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model2.pkl"
+DATA1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data1.csv"
+DATA2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data2.csv"
+
+def download_file_if_needed(url, filename):
+    if not os.path.exists(filename):
+        response = requests.get(url)
+        with open(filename, "wb") as f:
+            f.write(response.content)
+
 def download_models():
-    url1 = 'https://drive.google.com/uc?id=1uchT3FyZuGOBv9LTbxbm9gTynoWZ8HGk'
-    output1 = 'model1.pkl'
-    gdown.download(url1, output1, quiet=False)
-    model1 = joblib.load(output1)
-
-    url2 = 'https://drive.google.com/uc?id=10zj3fK-2YYjgQGj3HvPWHc6PtXTmyX61'
-    output2 = 'model2.pkl'
-    gdown.download(url2, output2, quiet=False)
-    model2 = joblib.load(output2)
-
+    download_file_if_needed(MODEL1_URL, "model1.pkl")
+    download_file_if_needed(MODEL2_URL, "model2.pkl")
+    model1 = joblib.load("model1.pkl")
+    model2 = joblib.load("model2.pkl")
     return model1, model2
 
-@st.cache_data
 def load_data():
-    url1 = 'https://drive.google.com/uc?id=1Xu3bpecWmhd0ZE9P2oLaalce9nTBV5Zx'
-    output1 = 'football_data1.csv'
-    gdown.download(url1, output1, quiet=False)
-    data1 = pd.read_csv(output1)
-
-    url2 = 'https://drive.google.com/uc?id=1ZtmML4-kYhVffOSxRLw6QhA9uUDqlqoy'
-    output2 = 'football_data2.csv'
-    gdown.download(url2, output2, quiet=False)
-    data2 = pd.read_csv(output2)
-
+    download_file_if_needed(DATA1_URL, "football_data1.csv")
+    download_file_if_needed(DATA2_URL, "football_data2.csv")
+    data1 = pd.read_csv("football_data1.csv")
+    data2 = pd.read_csv("football_data2.csv")
     return data1, data2
 
 def compute_mean_for_teams_v1(home, away, data, model):
     h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
-    if h2h.empty: return None
-
+    if h2h.empty:
+        return None
     h2h = h2h.drop(columns=['FTR', 'Date', 'HomeTeam', 'AwayTeam'], errors='ignore')
     h2h['HTR'] = h2h['HTR'].replace({'H': 1, 'D': 2, 'A': 3})
     mean = h2h.mean(numeric_only=True)
-
     if 'HTR' in mean:
-        if 0 <= mean['HTR'] <= 1.4: mean['HTR'] = 'H'
-        elif 1.5 <= mean['HTR'] <= 2.4: mean['HTR'] = 'D'
-        elif 2.5 <= mean['HTR'] <= 3.4: mean['HTR'] = 'A'
-
+        if 0 <= mean['HTR'] <= 1.4:
+            mean['HTR'] = 'H'
+        elif 1.5 <= mean['HTR'] <= 2.4:
+            mean['HTR'] = 'D'
+        elif 2.5 <= mean['HTR'] <= 3.4:
+            mean['HTR'] = 'A'
     input_df = pd.DataFrame([mean])
     for f in model.feature_names_in_:
-        if f not in input_df: input_df[f] = 0
+        if f not in input_df:
+            input_df[f] = 0
     return input_df[model.feature_names_in_]
 
 def compute_mean_for_teams_v2(home, away, data, model):
     h2h = data[(data['Home'] == home) & (data['Away'] == away)]
-    if h2h.empty: return None
-
-    h2h = h2h.drop(columns=["Res","Date","Country","League","Season","Time"], errors='ignore')
+    if h2h.empty:
+        return None
+    h2h = h2h.drop(columns=["Res", "Date", "Country", "League", "Season", "Time"], errors='ignore')
     mean = h2h.mean(numeric_only=True)
     input_df = pd.DataFrame([mean])
     for f in model.feature_names_in_:
-        if f not in input_df: input_df[f] = 0
+        if f not in input_df:
+            input_df[f] = 0
     return input_df[model.feature_names_in_]
 
 def calculate_probabilities_v1(home, away, data):
     h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
-    if h2h.empty: return None
+    if h2h.empty:
+        return None
     total = len(h2h)
     return {
         "Home Team Win": (h2h['FTR'] == 'H').sum() / total * 100,
@@ -85,7 +87,8 @@ def calculate_probabilities_v1(home, away, data):
 
 def calculate_probabilities_v2(home, away, data):
     h2h = data[(data['Home'] == home) & (data['Away'] == away)]
-    if h2h.empty: return None
+    if h2h.empty:
+        return None
     total = len(h2h)
     return {
         "Home Team Win": (h2h['Res'] == 'H').sum() / total * 100,
