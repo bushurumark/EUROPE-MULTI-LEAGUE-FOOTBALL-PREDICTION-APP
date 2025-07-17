@@ -20,12 +20,10 @@ from backend import (
     determine_final_prediction
 )
 from leagues import leagues
-
+st.set_page_config(page_title="Football Predictor", layout="centered")
 # Load models and data
 model1, model2 = download_models()
 data1, data2 = load_data()
-
-st.set_page_config(page_title="Football Predictor", layout="centered")
 
 # Inline CSS (or load external file)
 with open("style.css") as f:
