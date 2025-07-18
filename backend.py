@@ -9,6 +9,7 @@ Original file is located at
 
 #!pip install streamlit
 
+# backend.py
 import os
 import pandas as pd
 import joblib
@@ -113,11 +114,9 @@ def determine_final_prediction(pred, probs):
 def predict_with_confidence(model, input_df):
     try:
         proba = model.predict_proba(input_df)[0]
-        labels = model.classes_
-        return labels, proba
-    except Exception as e:
-        print("Error during predict_proba:", e)
-        return None, None
+        return proba  # Returns array like [0.6, 0.25, 0.15]
+    except:
+        return None
 
 def get_head_to_head_history(home, away, data, version="v1"):
     if version == "v1":
@@ -130,4 +129,5 @@ def get_head_to_head_history(home, away, data, version="v1"):
         if 'Date' in h2h.columns:
             h2h['Date'] = pd.to_datetime(h2h['Date'], errors='coerce')
         return h2h[['Date', 'Res']].dropna()
+
 
