@@ -9,9 +9,9 @@ Original file is located at
 
 #!pip install streamlit
 
+# main.py
 import streamlit as st
 import plotly.express as px
-import pandas as pd
 from backend import (
     download_models, load_data,
     compute_mean_for_teams_v1, compute_mean_for_teams_v2,
@@ -54,40 +54,19 @@ if st.button("Predict Match Outcome"):
     else:
         pred = model_used.predict(input_data)[0]
         final = determine_final_prediction(pred, probs)
-        labels, proba = predict_with_confidence(model_used, input_data)
+        proba = predict_with_confidence(model_used, input_data)
 
         st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final}</div>', unsafe_allow_html=True)
 
         if proba is not None:
             st.markdown("### 🔍 Model Confidence:")
-
-            label_map = {
-                'H': "Home Team Win",
-                'D': "Draw",
-                'A': "Away Team Win",
-                0: "Home Team Win",
-                1: "Draw",
-                2: "Away Team Win"
-            }
-
-            readable_labels = [label_map.get(l, str(l)) for l in labels]
-            df_conf = pd.DataFrame({
-                "Outcome": readable_labels,
-                "Confidence (%)": [p * 100 for p in proba]
-            })
-
-            fig_conf = px.bar(
-                df_conf,
-                x="Outcome",
-                y="Confidence (%)",
-                color="Outcome",
-                color_discrete_map={
-                    "Home Team Win": "green",
-                    "Draw": "yellow",
-                    "Away Team Win": "red"
-                },
-                title="Model Confidence (predict_proba)"
-            )
+            labels = ["Home Team Win", "Draw", "Away Team Win"]
+            fig_conf = px.bar(x=labels, y=proba * 100,
+                              labels={"x": "Outcome", "y": "Confidence (%)"},
+                              color=labels,
+                              color_discrete_map={
+                                  "Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"
+                              })
             st.plotly_chart(fig_conf)
 
         st.markdown("### 🧠 Historical Probabilities:")
@@ -103,5 +82,6 @@ if st.button("Predict Match Outcome"):
                                    title="H2H Match Outcomes Over Time")
             st.plotly_chart(fig_h2h)
             st.dataframe(h2h[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
+
 
 
