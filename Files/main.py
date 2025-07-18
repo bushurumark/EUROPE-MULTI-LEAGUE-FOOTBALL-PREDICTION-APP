@@ -13,64 +13,123 @@ Original file is located at
 
 import streamlit as st
 import plotly.express as px
+from typing import Optional, Dict, Tuple
 from backend import (
-    download_models, load_data,
-    compute_mean_for_teams_v1, compute_mean_for_teams_v2,
-    calculate_probabilities_v1, calculate_probabilities_v2,
-    determine_final_prediction
+    download_and_load_models,
+    load_data,
+    compute_mean_for_teams_v1,
+    compute_mean_for_teams_v2,
+    calculate_probabilities_v1,
+    calculate_probabilities_v2,
+    determine_final_prediction,
 )
 from leagues import leagues
+
+# --- Constants ---
+NO_DATA_MSG = "No historical data available."
+PREDICTION_TITLE = "🏆 Final Prediction: {}"
+
+# --- Streamlit Config ---
 st.set_page_config(page_title="Football Predictor", layout="centered")
-# Load models and data
-model1, model2 = download_models()
-data1, data2 = load_data()
 
-# Inline CSS (or load external file)
-with open("style.css") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+# --- CSS Styling ---
+def load_css() -> None:
+    """Load custom CSS styles."""
+    with open("style.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+load_css()
+
+# --- Cached Resources ---
+@st.cache_resource(ttl=3600)  # Cache for 1 hour
+def load_models_and_data() -> Tuple:
+    """Load models and data with caching."""
+    with st.spinner("Loading models and data..."):
+        model1, model2 = download_and_load_models()
+        data1, data2 = load_data()
+    return model1, model2, data1, data2
+
+# --- App Title ---
 st.markdown('<div class="title">FOOTBALL PREDICTION APP</div>', unsafe_allow_html=True)
 
-category = st.selectbox("Select Category", list(leagues.keys()))
-league = st.selectbox("Select a League", list(leagues[category].keys()))
-teams = leagues[category][league]
-home_team = st.selectbox("Select Home Team", teams)
-away_team = st.selectbox("Select Away Team", teams)
+# --- Sidebar Filters ---
+def render_sidebar_filters() -> Tuple[str, str, str, str]:
+    """Render league/team selection in the sidebar."""
+    with st.sidebar:
+        st.header("Filters")
+        category = st.selectbox("Select Category", list(leagues.keys()))
+        league = st.selectbox("Select a League", list(leagues[category].keys()))
+        teams = leagues[category][league]
+        home_team = st.selectbox("Select Home Team", teams, index=0)
+        away_team = st.selectbox("Select Away Team", teams, index=1 if len(teams) > 1 else 0)
+    return category, league, home_team, away_team
 
-if st.button("Predict Match Outcome"):
+# --- Prediction Logic ---
+def run_prediction(
+    category: str,
+    home_team: str,
+    away_team: str,
+    model1,
+    model2,
+    data1,
+    data2,
+) -> Tuple[Optional[float], Optional[Dict[str, float]]]:
+    """Run prediction based on category."""
     if category == "Others":
         input_data = compute_mean_for_teams_v2(home_team, away_team, data2, model2)
         probs = calculate_probabilities_v2(home_team, away_team, data2)
-        if input_data is None or probs is None:
-            st.warning("No historical data available.")
-        else:
-            pred = model2.predict(input_data)[0]
-            final = determine_final_prediction(pred, probs)
+        model = model2
     else:
         input_data = compute_mean_for_teams_v1(home_team, away_team, data1, model1)
         probs = calculate_probabilities_v1(home_team, away_team, data1)
-        if input_data is None or probs is None:
-            st.warning("No historical data available.")
-        else:
-            pred = model1.predict(input_data)[0]
-            final = determine_final_prediction(pred, probs)
+        model = model1
 
-    if input_data is not None and probs is not None:
-        st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final}</div>', unsafe_allow_html=True)
-        colors = {
-            "Home Team Win": "green",
-            "Draw": "yellow",
-            "Away Team Win": "red",
-        }
-        fig = px.bar(
-            x=list(probs.keys()),
-            y=list(probs.values()),
-            labels={'x': 'Outcome', 'y': 'Probability (%)'},
-            title="Match Outcome Probabilities",
-            color=list(probs.keys()),
-            color_discrete_map=colors
-        )
-        st.plotly_chart(fig)
-        st.markdown("### Historical Probabilities:")
-        for k, v in probs.items():
-            st.markdown(f"**{k}**: {v:.2f}%")
+    if input_data is None or probs is None:
+        st.warning(NO_DATA_MSG)
+        return None, None
+
+    pred = model.predict(input_data)[0]
+    return pred, probs
+
+# --- Plotting ---
+def plot_probabilities(probs: Dict[str, float]) -> None:
+    """Plot outcome probabilities using Plotly."""
+    colors = {
+        "Home Team Win": "green",
+        "Draw": "yellow",
+        "Away Team Win": "red",
+    }
+    fig = px.bar(
+        x=list(probs.keys()),
+        y=list(probs.values()),
+        labels={'x': 'Outcome', 'y': 'Probability (%)'},
+        title="Match Outcome Probabilities",
+        color=list(probs.keys()),
+        color_discrete_map=colors,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+# --- Main App ---
+def main() -> None:
+    """Run the Streamlit app."""
+    model1, model2, data1, data2 = load_models_and_data()
+    category, league, home_team, away_team = render_sidebar_filters()
+
+    if st.button("Predict Match Outcome", key="predict_button"):
+        with st.spinner("Predicting..."):
+            pred, probs = run_prediction(category, home_team, away_team, model1, model2, data1, data2)
+
+        if pred is not None and probs is not None:
+            final = determine_final_prediction(pred, probs)
+            st.markdown(
+                f'<div class="prediction-result">{PREDICTION_TITLE.format(final)}</div>',
+                unsafe_allow_html=True,
+            )
+            plot_probabilities(probs)
+            
+            st.markdown("### Historical Probabilities:")
+            for outcome, prob in probs.items():
+                st.markdown(f"**{outcome}**: {prob:.2f}%")
+
+if __name__ == "__main__":
+    main()
