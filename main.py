@@ -9,6 +9,7 @@ Original file is located at
 
 #!pip install streamlit
 
+# main.py
 import streamlit as st
 import plotly.express as px
 from backend import (
@@ -57,51 +58,31 @@ if st.button("Predict Match Outcome"):
 
         st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final}</div>', unsafe_allow_html=True)
 
-        # 🔳 Tabs for Model Confidence, Historical Probability, and H2H Data
-        tabs = st.tabs(["Model Confidence", "Historical Probabilities", "H2H Results"])
+        if proba is not None:
+            st.markdown("### 🔍 Model Confidence:")
+            labels = ["Home Team Win", "Draw", "Away Team Win"]
+            fig_conf = px.bar(x=labels, y=proba * 100,
+                              labels={"x": "Outcome", "y": "Confidence (%)"},
+                              color=labels,
+                              color_discrete_map={
+                                  "Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"
+                              })
+            st.plotly_chart(fig_conf)
 
-        with tabs[0]:  # Model Confidence Tab
-            st.subheader("Model Probability Confidence")
-            if proba is not None:
-                labels = ["Home Team Win", "Draw", "Away Team Win"]
-                fig_conf = px.bar(
-                    x=labels, y=proba * 100,
-                    labels={"x": "Outcome", "y": "Confidence (%)"},
-                    color=labels,
-                    color_discrete_map={"Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"},
-                    title="Model Prediction Confidence"
-                )
-                st.plotly_chart(fig_conf)
+        st.markdown("### 🧠 Historical Probabilities:")
+        for k, v in probs.items():
+            st.markdown(f"**{k}**: {v:.2f}%")
 
-        with tabs[1]:  # Historical Probabilities Tab
-            st.subheader("Historical Match Probabilities")
-            fig_hist = px.bar(
-                x=list(probs.keys()), y=list(probs.values()),
-                labels={"x": "Outcome", "y": "Probability (%)"},
-                color=list(probs.keys()),
-                color_discrete_map={"Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"},
-                title="Historical Outcome Probabilities"
-            )
-            st.plotly_chart(fig_hist)
-            for k, v in probs.items():
-                st.markdown(f"**{k}**: {v:.2f}%")
+        if not h2h.empty:
+            st.markdown("### 📊 Head-to-Head Results:")
+            result_map = {'H': 'Home Win', 'D': 'Draw', 'A': 'Away Win'}
+            result_col = 'FTR' if 'FTR' in h2h.columns else 'Res'
+            h2h['Result'] = h2h[result_col].map(result_map)
+            fig_h2h = px.histogram(h2h, x='Date', color='Result',
+                                   title="H2H Match Outcomes Over Time")
+            st.plotly_chart(fig_h2h)
+            st.dataframe(h2h[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
 
-        with tabs[2]:  # H2H Tab
-            st.subheader("Head-to-Head Match Outcomes Over Time")
-            if not h2h.empty:
-                result_map = {'H': 'Home Win', 'D': 'Draw', 'A': 'Away Win'}
-                result_col = 'FTR' if 'FTR' in h2h.columns else 'Res'
-                h2h['Result'] = h2h[result_col].map(result_map)
-                fig_h2h = px.histogram(
-                    h2h, x='Date', color='Result',
-                    title="H2H Match Results Over Time",
-                    labels={'Date': 'Match Date'},
-                    nbins=20
-                )
-                st.plotly_chart(fig_h2h)
-                st.dataframe(h2h[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
-            else:
-                st.info("No head-to-head data found.")
 
 
 
