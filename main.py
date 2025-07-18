@@ -9,23 +9,23 @@ Original file is located at
 
 #!pip install streamlit
 
+# main.py
 import streamlit as st
 import plotly.express as px
 from backend import (
     download_models, load_data,
     compute_mean_for_teams_v1, compute_mean_for_teams_v2,
     calculate_probabilities_v1, calculate_probabilities_v2,
-    determine_final_prediction
+    determine_final_prediction, predict_with_confidence,
+    get_head_to_head_history
 )
 from leagues import leagues
 
 st.set_page_config(page_title="Football Predictor", layout="centered")
 
-# Load models and data
 model1, model2 = download_models()
 data1, data2 = load_data()
 
-# Inline CSS
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
@@ -38,85 +38,49 @@ home_team = st.selectbox("Select Home Team", teams)
 away_team = st.selectbox("Select Away Team", teams)
 
 if st.button("Predict Match Outcome"):
-    if home_team == away_team:
-        st.warning("Home and Away teams must be different.")
+    if category == "Others":
+        input_data = compute_mean_for_teams_v2(home_team, away_team, data2, model2)
+        probs = calculate_probabilities_v2(home_team, away_team, data2)
+        h2h = get_head_to_head_history(home_team, away_team, data2, version="v2")
+        model_used = model2
     else:
-        if category == "Others":
-            input_data = compute_mean_for_teams_v2(home_team, away_team, data2, model2)
-            probs = calculate_probabilities_v2(home_team, away_team, data2)
-            h2h_df = data2[(data2["Home"] == home_team) & (data2["Away"] == away_team)]
-            model = model2
-        else:
-            input_data = compute_mean_for_teams_v1(home_team, away_team, data1, model1)
-            probs = calculate_probabilities_v1(home_team, away_team, data1)
-            h2h_df = data1[(data1["HomeTeam"] == home_team) & (data1["AwayTeam"] == away_team)]
-            model = model1
+        input_data = compute_mean_for_teams_v1(home_team, away_team, data1, model1)
+        probs = calculate_probabilities_v1(home_team, away_team, data1)
+        h2h = get_head_to_head_history(home_team, away_team, data1, version="v1")
+        model_used = model1
 
-        if input_data is None or probs is None:
-            st.warning("No historical data available for this fixture.")
-        else:
-            pred = model.predict(input_data)[0]
-            final = determine_final_prediction(pred, probs)
+    if input_data is None or probs is None:
+        st.warning("No historical data available.")
+    else:
+        pred = model_used.predict(input_data)[0]
+        final = determine_final_prediction(pred, probs)
+        proba = predict_with_confidence(model_used, input_data)
 
-            # 🏆 Final prediction
-            st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final}</div>', unsafe_allow_html=True)
 
-            # 🔢 Model confidence using predict_proba (if available)
-            if hasattr(model, "predict_proba"):
-                conf_probs = model.predict_proba(input_data)[0]
-                labels = model.classes_ if hasattr(model, "classes_") else ["Home Team Win", "Draw", "Away Team Win"]
-                st.markdown("### 📈 Model Confidence:")
-                fig_conf = px.bar(
-                    x=labels,
-                    y=conf_probs * 100,
-                    labels={"x": "Outcome", "y": "Confidence (%)"},
-                    title="Model Confidence via predict_proba",
-                    color=labels,
-                    color_discrete_map={
-                        "Home Team Win": "green",
-                        "Draw": "orange",
-                        "Away Team Win": "red"
-                    }
-                )
-                st.plotly_chart(fig_conf)
+        if proba is not None:
+            st.markdown("### 🔍 Model Confidence:")
+            labels = ["Home Team Win", "Draw", "Away Team Win"]
+            fig_conf = px.bar(x=labels, y=proba * 100,
+                              labels={"x": "Outcome", "y": "Confidence (%)"},
+                              color=labels,
+                              color_discrete_map={
+                                  "Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"
+                              })
+            st.plotly_chart(fig_conf)
 
-            # 📊 Historical probabilities
-            st.markdown("### 🧠 Historical Probabilities:")
-            for k, v in probs.items():
-                st.markdown(f"**{k}**: {v:.2f}%")
+        st.markdown("### 🧠 Historical Probabilities:")
+        for k, v in probs.items():
+            st.markdown(f"**{k}**: {v:.2f}%")
 
-            fig_hist = px.bar(
-                x=list(probs.keys()),
-                y=list(probs.values()),
-                labels={'x': 'Outcome', 'y': 'Probability (%)'},
-                title="Historical Match Outcome Probabilities",
-                color=list(probs.keys()),
-                color_discrete_map={
-                    "Home Team Win": "green",
-                    "Draw": "yellow",
-                    "Away Team Win": "red",
-                }
-            )
-            st.plotly_chart(fig_hist)
-
-            # 📉 Head-to-head result trend
-            if not h2h_df.empty:
-                st.markdown("### 🤝 Head-to-Head Match History:")
-                h2h_clean = h2h_df[["Date", "HomeTeam", "AwayTeam", "FTR"]] if "FTR" in h2h_df else h2h_df[["Date", "Home", "Away", "Res"]]
-                st.dataframe(h2h_clean.sort_values("Date", ascending=False))
-
-                result_col = "FTR" if "FTR" in h2h_df else "Res"
-                h2h_plot = h2h_df.copy()
-                h2h_plot["Match"] = h2h_plot["Date"]
-                h2h_plot["Result"] = h2h_plot[result_col].map({"H": "Home Team Win", "D": "Draw", "A": "Away Team Win"})
-
-                fig_h2h = px.line(
-                    h2h_plot.sort_values("Date"),
-                    x="Date", y=[result_col],
-                    markers=True,
-                    title="Result Timeline (H2H)"
-                )
-                fig_h2h.update_traces(line_color='blue')
-                st.plotly_chart(fig_h2h)
+        if not h2h.empty:
+            st.markdown("### 📊 Head-to-Head Results:")
+            result_map = {'H': 'Home Win', 'D': 'Draw', 'A': 'Away Win'}
+            result_col = 'FTR' if 'FTR' in h2h.columns else 'Res'
+            h2h['Result'] = h2h[result_col].map(result_map)
+            fig_h2h = px.histogram(h2h, x='Date', color='Result',
+                                   title="H2H Match Outcomes Over Time")
+            st.plotly_chart(fig_h2h)
+            st.dataframe(h2h[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
 
 
