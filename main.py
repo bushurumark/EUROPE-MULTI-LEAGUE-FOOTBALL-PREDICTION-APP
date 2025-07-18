@@ -10,22 +10,22 @@ Original file is located at
 #!pip install streamlit
 
 # main.py
-
 import streamlit as st
 import plotly.express as px
 from backend import (
     download_models, load_data,
     compute_mean_for_teams_v1, compute_mean_for_teams_v2,
     calculate_probabilities_v1, calculate_probabilities_v2,
-    determine_final_prediction
+    determine_final_prediction, predict_with_confidence,
+    get_head_to_head_history
 )
 from leagues import leagues
+
 st.set_page_config(page_title="Football Predictor", layout="centered")
-# Load models and data
+
 model1, model2 = download_models()
 data1, data2 = load_data()
 
-# Inline CSS (or load external file)
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
@@ -41,36 +41,45 @@ if st.button("Predict Match Outcome"):
     if category == "Others":
         input_data = compute_mean_for_teams_v2(home_team, away_team, data2, model2)
         probs = calculate_probabilities_v2(home_team, away_team, data2)
-        if input_data is None or probs is None:
-            st.warning("No historical data available.")
-        else:
-            pred = model2.predict(input_data)[0]
-            final = determine_final_prediction(pred, probs)
+        h2h = get_head_to_head_history(home_team, away_team, data2, version="v2")
+        model_used = model2
     else:
         input_data = compute_mean_for_teams_v1(home_team, away_team, data1, model1)
         probs = calculate_probabilities_v1(home_team, away_team, data1)
-        if input_data is None or probs is None:
-            st.warning("No historical data available.")
-        else:
-            pred = model1.predict(input_data)[0]
-            final = determine_final_prediction(pred, probs)
+        h2h = get_head_to_head_history(home_team, away_team, data1, version="v1")
+        model_used = model1
 
-    if input_data is not None and probs is not None:
+    if input_data is None or probs is None:
+        st.warning("No historical data available.")
+    else:
+        pred = model_used.predict(input_data)[0]
+        final = determine_final_prediction(pred, probs)
+        proba = predict_with_confidence(model_used, input_data)
+
         st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final}</div>', unsafe_allow_html=True)
-        colors = {
-            "Home Team Win": "green",
-            "Draw": "yellow",
-            "Away Team Win": "red",
-        }
-        fig = px.bar(
-            x=list(probs.keys()),
-            y=list(probs.values()),
-            labels={'x': 'Outcome', 'y': 'Probability (%)'},
-            title="Match Outcome Probabilities",
-            color=list(probs.keys()),
-            color_discrete_map=colors
-        )
-        st.plotly_chart(fig)
-        st.markdown("### Historical Probabilities:")
+
+        if proba is not None:
+            st.markdown("### 🔍 Model Confidence:")
+            labels = ["Home Team Win", "Draw", "Away Team Win"]
+            fig_conf = px.bar(x=labels, y=proba * 100,
+                              labels={"x": "Outcome", "y": "Confidence (%)"},
+                              color=labels,
+                              color_discrete_map={
+                                  "Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"
+                              })
+            st.plotly_chart(fig_conf)
+
+        st.markdown("### 🧠 Historical Probabilities:")
         for k, v in probs.items():
             st.markdown(f"**{k}**: {v:.2f}%")
+
+        if not h2h.empty:
+            st.markdown("### 📊 Head-to-Head Results:")
+            result_map = {'H': 'Home Win', 'D': 'Draw', 'A': 'Away Win'}
+            result_col = 'FTR' if 'FTR' in h2h.columns else 'Res'
+            h2h['Result'] = h2h[result_col].map(result_map)
+            fig_h2h = px.histogram(h2h, x='Date', color='Result',
+                                   title="H2H Match Outcomes Over Time")
+            st.plotly_chart(fig_h2h)
+            st.dataframe(h2h[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
+
