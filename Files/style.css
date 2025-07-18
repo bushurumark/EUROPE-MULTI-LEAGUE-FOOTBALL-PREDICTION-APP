@@ -1,39 +1,89 @@
-/* style.css */
-
+/* ===== Base Styles ===== */
 body {
-    background-color: #0000FF;
-    color: white;
+    background-color: #0a0a2a; /* Dark blue (better than pure #0000FF) */
+    color: #ffffff;
+    font-family: 'Arial', sans-serif; /* Ensures consistent fonts */
 }
 
+/* ===== Title Styling ===== */
 .title {
-    color: #32CD32;
+    color: #32CD32; /* Lime green */
     text-align: center;
-    font-size: 40px;
+    font-size: 2.5rem; /* Better than px for responsiveness */
+    margin-bottom: 1.5rem;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Adds depth */
 }
 
+/* ===== Form Elements ===== */
+/* Labels */
 label {
-    color: red !important;
+    color: #ff6b6b !important; /* Softer red */
     font-weight: bold;
+    font-size: 1.1rem;
 }
 
-.stSelectbox {
-    color: #00008B;
-    background-color: #ADD8E6;
-    border-radius: 10px;
+/* Select Boxes */
+.stSelectbox div[data-baseweb="select"] {
+    background-color: #e6f7ff !important; /* Light blue */
+    border-radius: 10px !important;
+    border: 2px solid #32CD32 !important;
+    color: #00008B !important;
+}
+
+.stSelectbox div[data-baseweb="select"]:hover {
+    border-color: #ff4500 !important; /* Orange-red on hover */
+}
+
+/* Input Text (if used) */
+.stTextInput input {
+    background-color: #e6f7ff;
     border: 2px solid #32CD32;
+    border-radius: 10px;
+    color: #00008B;
 }
 
+/* ===== Button Styling ===== */
 .stButton button {
-    background-color: #FFD700;
-    color: black;
-    font-size: 20px;
+    background-color: #FFD700; /* Gold */
+    color: #000000;
+    font-size: 1.2rem;
     border-radius: 10px;
     padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease; /* Smooth hover effect */
 }
 
+.stButton button:hover {
+    background-color: #ffcc00; /* Darker gold on hover */
+    transform: scale(1.02); /* Slight grow effect */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== Prediction Result ===== */
 .prediction-result {
-    color: #FF4500;
-    font-size: 30px;
+    color: #FF4500; /* Orange-red */
+    font-size: 1.8rem; /* Responsive sizing */
     text-align: center;
     font-weight: bold;
+    margin: 1.5rem 0;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.1); /* Slight highlight */
+    border-radius: 10px;
+}
+
+/* ===== Plotly Chart Adjustments ===== */
+/* Ensures charts fit well */
+.plotly-graph-div {
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+}
+
+/* ===== Footer (optional) ===== */
+.footer {
+    text-align: center;
+    margin-top: 2rem;
+    color: #aaaaaa;
+    font-size: 0.9rem;
 }
