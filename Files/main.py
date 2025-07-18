@@ -35,7 +35,7 @@ st.set_page_config(page_title="Football Predictor", layout="centered")
 # --- CSS Styling ---
 def load_css() -> None:
     """Load custom CSS styles from GitHub."""
-    css_url = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/style.css"
+    css_url = "https://cdn.jsdelivr.net/gh/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP@main/style.css"
     st.markdown(
         f'<link rel="stylesheet" href="{css_url}">',
         unsafe_allow_html=True
