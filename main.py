@@ -9,9 +9,9 @@ Original file is located at
 
 #!pip install streamlit
 
-# main.py
 import streamlit as st
 import plotly.express as px
+import pandas as pd
 from backend import (
     download_models, load_data,
     compute_mean_for_teams_v1, compute_mean_for_teams_v2,
@@ -61,12 +61,22 @@ if st.button("Predict Match Outcome"):
         if proba is not None:
             st.markdown("### 🔍 Model Confidence:")
             labels = ["Home Team Win", "Draw", "Away Team Win"]
-            fig_conf = px.bar(x=labels, y=proba * 100,
-                              labels={"x": "Outcome", "y": "Confidence (%)"},
-                              color=labels,
-                              color_discrete_map={
-                                  "Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"
-                              })
+            df_conf = pd.DataFrame({
+                "Outcome": labels,
+                "Confidence (%)": [p * 100 for p in proba]
+            })
+            fig_conf = px.bar(
+                df_conf, 
+                x="Outcome", 
+                y="Confidence (%)",
+                color="Outcome",
+                color_discrete_map={
+                    "Home Team Win": "green",
+                    "Draw": "yellow",
+                    "Away Team Win": "red"
+                },
+                title="Model Confidence (predict_proba)"
+            )
             st.plotly_chart(fig_conf)
 
         st.markdown("### 🧠 Historical Probabilities:")
@@ -82,5 +92,4 @@ if st.button("Predict Match Outcome"):
                                    title="H2H Match Outcomes Over Time")
             st.plotly_chart(fig_h2h)
             st.dataframe(h2h[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
-
 
