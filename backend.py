@@ -11,12 +11,12 @@ Original file is located at
 
 # backend.py
 
+# backend.py
 import os
 import pandas as pd
 import joblib
 import requests
 
-# Replace these with your actual raw GitHub URLs
 MODEL1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model1.pkl"
 MODEL2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model2.pkl"
 DATA1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data1.csv"
@@ -105,12 +105,30 @@ def determine_final_prediction(pred, probs):
         model_outcome = "Away Team Win"
     else:
         return "❗ Invalid prediction"
-
     highest = max(probs, key=probs.get)
     if model_outcome == highest:
         return model_outcome
-
     tied = [k for k, v in probs.items() if v == probs[highest]]
     if len(tied) > 1:
         return f"{model_outcome} or {tied[1]}" if tied[1] != model_outcome else f"{tied[0]} or {model_outcome}"
     return f"{model_outcome} or {highest}"
+
+def predict_with_confidence(model, input_df):
+    try:
+        proba = model.predict_proba(input_df)[0]
+        return proba  # Returns array like [0.6, 0.25, 0.15]
+    except:
+        return None
+
+def get_head_to_head_history(home, away, data, version="v1"):
+    if version == "v1":
+        h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
+        if 'Date' in h2h.columns:
+            h2h['Date'] = pd.to_datetime(h2h['Date'], errors='coerce')
+        return h2h[['Date', 'FTR']].dropna()
+    else:
+        h2h = data[(data['Home'] == home) & (data['Away'] == away)]
+        if 'Date' in h2h.columns:
+            h2h['Date'] = pd.to_datetime(h2h['Date'], errors='coerce')
+        return h2h[['Date', 'Res']].dropna()
+
