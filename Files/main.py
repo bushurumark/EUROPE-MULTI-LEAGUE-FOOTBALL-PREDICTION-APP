@@ -34,11 +34,14 @@ st.set_page_config(page_title="Football Predictor", layout="centered")
 
 # --- CSS Styling ---
 def load_css() -> None:
-    """Load custom CSS styles."""
-    with open("style.css") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    """Load custom CSS styles from GitHub."""
+    css_url = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/style.css"
+    st.markdown(
+        f'<link rel="stylesheet" href="{css_url}">',
+        unsafe_allow_html=True
+    )
 
-load_css()
+load_css()  # Call this function to apply styles
 
 # --- Cached Resources ---
 @st.cache_resource(ttl=3600)  # Cache for 1 hour
