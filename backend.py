@@ -130,6 +130,51 @@ def get_head_to_head_history(home, away, data, version="v1"):
             h2h['Date'] = pd.to_datetime(h2h['Date'], errors='coerce')
         return h2h[['Date', 'Res']].dropna()
 
+def get_recent_team_form(team, data, version="v1", num_matches=5):
+    if version == "v1":
+        matches = data[(data['HomeTeam'] == team) | (data['AwayTeam'] == team)].copy()
+        matches['Date'] = pd.to_datetime(matches['Date'], errors='coerce')
+        matches = matches.sort_values('Date', ascending=False).head(num_matches)
+        results = []
+        for _, row in matches.iterrows():
+            if row['HomeTeam'] == team:
+                if row['FTR'] == 'H':
+                    results.append("W")
+                elif row['FTR'] == 'D':
+                    results.append("D")
+                else:
+                    results.append("L")
+            else:
+                if row['FTR'] == 'A':
+                    results.append("W")
+                elif row['FTR'] == 'D':
+                    results.append("D")
+                else:
+                    results.append("L")
+        return results
+    else:
+        matches = data[(data['Home'] == team) | (data['Away'] == team)].copy()
+        matches['Date'] = pd.to_datetime(matches['Date'], errors='coerce')
+        matches = matches.sort_values('Date', ascending=False).head(num_matches)
+        results = []
+        for _, row in matches.iterrows():
+            if row['Home'] == team:
+                if row['Res'] == 'H':
+                    results.append("W")
+                elif row['Res'] == 'D':
+                    results.append("D")
+                else:
+                    results.append("L")
+            else:
+                if row['Res'] == 'A':
+                    results.append("W")
+                elif row['Res'] == 'D':
+                    results.append("D")
+                else:
+                    results.append("L")
+        return results
+
+
 
 
 
