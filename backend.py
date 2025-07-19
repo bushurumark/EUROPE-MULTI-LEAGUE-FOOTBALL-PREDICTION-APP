@@ -8,18 +8,19 @@ Original file is located at
 """
 
 #!pip install streamlit
-
 # backend.py
 import os
 import pandas as pd
 import joblib
 import requests
 
+# Model and data URLs
 MODEL1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model1.pkl"
 MODEL2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model2.pkl"
 DATA1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data1.csv"
 DATA2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data2.csv"
 
+# Download files if not present
 def download_file_if_needed(url, filename):
     if not os.path.exists(filename):
         response = requests.get(url)
@@ -40,6 +41,7 @@ def load_data():
     data2 = pd.read_csv("football_data2.csv")
     return data1, data2
 
+# Prepare inputs for model1
 def compute_mean_for_teams_v1(home, away, data, model):
     h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
     if h2h.empty:
@@ -60,6 +62,7 @@ def compute_mean_for_teams_v1(home, away, data, model):
             input_df[f] = 0
     return input_df[model.feature_names_in_]
 
+# Prepare inputs for model2
 def compute_mean_for_teams_v2(home, away, data, model):
     h2h = data[(data['Home'] == home) & (data['Away'] == away)]
     if h2h.empty:
@@ -72,6 +75,7 @@ def compute_mean_for_teams_v2(home, away, data, model):
             input_df[f] = 0
     return input_df[model.feature_names_in_]
 
+# Historical win probabilities for model1
 def calculate_probabilities_v1(home, away, data):
     h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
     if h2h.empty:
@@ -83,6 +87,7 @@ def calculate_probabilities_v1(home, away, data):
         "Away Team Win": (h2h['FTR'] == 'A').sum() / total * 100,
     }
 
+# Historical win probabilities for model2
 def calculate_probabilities_v2(home, away, data):
     h2h = data[(data['Home'] == home) & (data['Away'] == away)]
     if h2h.empty:
@@ -94,6 +99,7 @@ def calculate_probabilities_v2(home, away, data):
         "Away Team Win": (h2h['Res'] == 'A').sum() / total * 100,
     }
 
+# Final decision blending model and stats
 def determine_final_prediction(pred, probs):
     if 0.5 <= pred <= 1.4:
         model_outcome = "Home Team Win"
@@ -111,13 +117,15 @@ def determine_final_prediction(pred, probs):
         return f"{model_outcome} or {tied[1]}" if tied[1] != model_outcome else f"{tied[0]} or {model_outcome}"
     return f"{model_outcome} or {highest}"
 
+# Predict_proba model confidence
 def predict_with_confidence(model, input_df):
     try:
         proba = model.predict_proba(input_df)[0]
-        return proba  # e.g., [0.6, 0.25, 0.15]
-    except Exception as e:
+        return proba  # e.g. [0.6, 0.25, 0.15]
+    except:
         return None
 
+# Get head-to-head match history
 def get_head_to_head_history(home, away, data, version="v1"):
     if version == "v1":
         h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
@@ -130,51 +138,20 @@ def get_head_to_head_history(home, away, data, version="v1"):
             h2h['Date'] = pd.to_datetime(h2h['Date'], errors='coerce')
         return h2h[['Date', 'Res']].dropna()
 
-def get_recent_team_form(team, data, version="v1", num_matches=5):
+# ✅ Recent form: last 5 match results (e.g. WDLDD)
+def get_recent_team_form(home, away, data, version="v1"):
     if version == "v1":
-        matches = data[(data['HomeTeam'] == team) | (data['AwayTeam'] == team)].copy()
-        matches['Date'] = pd.to_datetime(matches['Date'], errors='coerce')
-        matches = matches.sort_values('Date', ascending=False).head(num_matches)
-        results = []
-        for _, row in matches.iterrows():
-            if row['HomeTeam'] == team:
-                if row['FTR'] == 'H':
-                    results.append("W")
-                elif row['FTR'] == 'D':
-                    results.append("D")
-                else:
-                    results.append("L")
-            else:
-                if row['FTR'] == 'A':
-                    results.append("W")
-                elif row['FTR'] == 'D':
-                    results.append("D")
-                else:
-                    results.append("L")
-        return results
+        home_matches = data[data['HomeTeam'] == home].sort_values(by='Date', ascending=False).head(5)
+        away_matches = data[data['AwayTeam'] == away].sort_values(by='Date', ascending=False).head(5)
+        home_form = "".join(home_matches['FTR'].fillna("-").values)
+        away_form = "".join(away_matches['FTR'].fillna("-").values)
     else:
-        matches = data[(data['Home'] == team) | (data['Away'] == team)].copy()
-        matches['Date'] = pd.to_datetime(matches['Date'], errors='coerce')
-        matches = matches.sort_values('Date', ascending=False).head(num_matches)
-        results = []
-        for _, row in matches.iterrows():
-            if row['Home'] == team:
-                if row['Res'] == 'H':
-                    results.append("W")
-                elif row['Res'] == 'D':
-                    results.append("D")
-                else:
-                    results.append("L")
-            else:
-                if row['Res'] == 'A':
-                    results.append("W")
-                elif row['Res'] == 'D':
-                    results.append("D")
-                else:
-                    results.append("L")
-        return results
+        home_matches = data[data['Home'] == home].sort_values(by='Date', ascending=False).head(5)
+        away_matches = data[data['Away'] == away].sort_values(by='Date', ascending=False).head(5)
+        home_form = "".join(home_matches['Res'].fillna("-").values)
+        away_form = "".join(away_matches['Res'].fillna("-").values)
 
-
+    return home_form, away_form
 
 
 
