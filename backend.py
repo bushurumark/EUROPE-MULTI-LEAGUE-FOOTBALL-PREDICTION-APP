@@ -138,7 +138,7 @@ def get_head_to_head_history(home, away, data, version="v1"):
             h2h['Date'] = pd.to_datetime(h2h['Date'], errors='coerce')
         return h2h[['Date', 'Res']].dropna()
 
-# ✅ Recent form: last 5 match results (e.g. WDLDD)
+# ✅ Recent general form (not H2H)
 def get_recent_team_form(home, away, data, version="v1"):
     if version == "v1":
         home_matches = data[data['HomeTeam'] == home].sort_values(by='Date', ascending=False).head(5)
@@ -150,8 +150,44 @@ def get_recent_team_form(home, away, data, version="v1"):
         away_matches = data[data['Away'] == away].sort_values(by='Date', ascending=False).head(5)
         home_form = "".join(home_matches['Res'].fillna("-").values)
         away_form = "".join(away_matches['Res'].fillna("-").values)
-
     return home_form, away_form
+
+# ✅ New: Refined Head-to-Head Team Form (W/D/L format for each team)
+def get_head_to_head_form(home_team, away_team, data, version="v1"):
+    if version == "v2":
+        home_col, away_col, result_col = "Home", "Away", "Res"
+    else:
+        home_col, away_col, result_col = "HomeTeam", "AwayTeam", "FTR"
+
+    df = data[[home_col, away_col, result_col, "Date"]].copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"])
+
+    h2h = df[
+        ((df[home_col] == home_team) & (df[away_col] == away_team)) |
+        ((df[home_col] == away_team) & (df[away_col] == home_team))
+    ].sort_values("Date", ascending=False).head(5)
+
+    home_form, away_form = [], []
+
+    for _, row in h2h.iterrows():
+        result = row[result_col]
+        h, a = row[home_col], row[away_col]
+
+        # Home team form
+        if home_team == h:
+            home_form.append("W" if result == "H" else "D" if result == "D" else "L")
+        elif home_team == a:
+            home_form.append("W" if result == "A" else "D" if result == "D" else "L")
+
+        # Away team form
+        if away_team == h:
+            away_form.append("W" if result == "H" else "D" if result == "D" else "L")
+        elif away_team == a:
+            away_form.append("W" if result == "A" else "D" if result == "D" else "L")
+
+    return "".join(home_form), "".join(away_form)
+
 
 
 
