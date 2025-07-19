@@ -114,8 +114,8 @@ def determine_final_prediction(pred, probs):
 def predict_with_confidence(model, input_df):
     try:
         proba = model.predict_proba(input_df)[0]
-        return proba  # Returns array like [0.6, 0.25, 0.15]
-    except:
+        return proba  # e.g., [0.6, 0.25, 0.15]
+    except Exception as e:
         return None
 
 def get_head_to_head_history(home, away, data, version="v1"):
@@ -129,6 +129,7 @@ def get_head_to_head_history(home, away, data, version="v1"):
         if 'Date' in h2h.columns:
             h2h['Date'] = pd.to_datetime(h2h['Date'], errors='coerce')
         return h2h[['Date', 'Res']].dropna()
+
 
 
 
