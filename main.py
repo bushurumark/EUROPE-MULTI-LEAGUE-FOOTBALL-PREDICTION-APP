@@ -57,7 +57,6 @@ if st.button("🔮 Predict Match Outcome"):
         home_form, away_form = get_recent_team_form(home_team, away_team, data, version=version)
         head_to_head = get_head_to_head_history(home_team, away_team, data, version=version)
 
-        # Store in session state
         st.session_state.prediction_made = True
         st.session_state.final = final
         st.session_state.conf = conf
@@ -111,8 +110,8 @@ if st.session_state.get("prediction_made", False):
 
     elif selected_view == "Recent Team Form":
         st.subheader("📈 Recent Team Form")
-        st.markdown(f"**{home_team}**: `{st.session_state.home_form}`")
-        st.markdown(f"**{away_team}**: `{st.session_state.away_form}`")
+        st.markdown(f"**{home_team}** (Last 5 Home Games): `{st.session_state.home_form}`")
+        st.markdown(f"**{away_team}** (Last 5 Away Games): `{st.session_state.away_form}`")
 
     elif selected_view == "Head-to-Head History" and not st.session_state.h2h.empty:
         st.subheader("🔁 Head-to-Head Results")
