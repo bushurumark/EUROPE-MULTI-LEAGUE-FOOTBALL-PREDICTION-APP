@@ -17,7 +17,7 @@ from backend import (
     compute_mean_for_teams_v1, compute_mean_for_teams_v2,
     calculate_probabilities_v1, calculate_probabilities_v2,
     determine_final_prediction, predict_with_confidence,
-    get_head_to_head_history, get_recent_team_form
+    get_head_to_head_history, get_recent_team_form  # Make sure this is imported
 )
 from leagues import leagues
 
@@ -42,25 +42,31 @@ if st.button("Predict Match Outcome"):
         input_data = compute_mean_for_teams_v2(home_team, away_team, data2, model2)
         probs = calculate_probabilities_v2(home_team, away_team, data2)
         h2h = get_head_to_head_history(home_team, away_team, data2, version="v2")
-        home_form, away_form = get_recent_team_form(home_team, away_team, data2, version="v2")
+        home_form = get_recent_team_form(home_team, data2, version="v2")
+        away_form = get_recent_team_form(away_team, data2, version="v2")
         model_used = model2
     else:
         input_data = compute_mean_for_teams_v1(home_team, away_team, data1, model1)
         probs = calculate_probabilities_v1(home_team, away_team, data1)
         h2h = get_head_to_head_history(home_team, away_team, data1, version="v1")
-        home_form, away_form = get_recent_team_form(home_team, away_team, data1, version="v1")
+        home_form = get_recent_team_form(home_team, data1, version="v1")
+        away_form = get_recent_team_form(away_team, data1, version="v1")
         model_used = model1
 
     if input_data is None or probs is None:
         st.warning("No historical data available.")
     else:
+        # Display team forms
+        st.markdown("### 📌 Recent Team Form")
+        st.markdown(f"📈 **{home_team} Form:** {' | '.join(home_form)}")
+        st.markdown(f"📉 **{away_team} Form:** {' | '.join(away_form)}")
+
         pred = model_used.predict(input_data)[0]
         final = determine_final_prediction(pred, probs)
         proba = predict_with_confidence(model_used, input_data)
 
         st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final}</div>', unsafe_allow_html=True)
 
-        # ✅ Model confidence
         if proba is not None:
             st.markdown("### 🔍 Model Confidence:")
             labels = ["Home Team Win", "Draw", "Away Team Win"]
@@ -72,23 +78,10 @@ if st.button("Predict Match Outcome"):
                               })
             st.plotly_chart(fig_conf)
 
-        # ✅ Historical probabilities
         st.markdown("### 🧠 Historical Probabilities:")
         for k, v in probs.items():
             st.markdown(f"**{k}**: {v:.2f}%")
 
-        # ✅ Team Form
-        st.markdown("### 📉 Recent Team Form (Last 5 Matches):")
-        if home_form:
-            st.markdown(f"**{home_team}**: {home_form['string']} — Win Rate: {home_form['win_rate']}%")
-        else:
-            st.markdown(f"**{home_team}**: No recent data.")
-        if away_form:
-            st.markdown(f"**{away_team}**: {away_form['string']} — Win Rate: {away_form['win_rate']}%")
-        else:
-            st.markdown(f"**{away_team}**: No recent data.")
-
-        # ✅ Head-to-head chart
         if not h2h.empty:
             st.markdown("### 📊 Head-to-Head Results:")
             result_map = {'H': 'Home Win', 'D': 'Draw', 'A': 'Away Win'}
@@ -98,6 +91,7 @@ if st.button("Predict Match Outcome"):
                                    title="H2H Match Outcomes Over Time")
             st.plotly_chart(fig_h2h)
             st.dataframe(h2h[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
+
 
 
 
