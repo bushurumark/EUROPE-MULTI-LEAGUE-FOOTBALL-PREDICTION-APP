@@ -41,7 +41,6 @@ def load_data():
     data2 = pd.read_csv("football_data2.csv")
     return data1, data2
 
-# Prepare inputs for model1
 def compute_mean_for_teams_v1(home, away, data, model):
     h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
     if h2h.empty:
@@ -62,7 +61,6 @@ def compute_mean_for_teams_v1(home, away, data, model):
             input_df[f] = 0
     return input_df[model.feature_names_in_]
 
-# Prepare inputs for model2
 def compute_mean_for_teams_v2(home, away, data, model):
     h2h = data[(data['Home'] == home) & (data['Away'] == away)]
     if h2h.empty:
@@ -75,7 +73,6 @@ def compute_mean_for_teams_v2(home, away, data, model):
             input_df[f] = 0
     return input_df[model.feature_names_in_]
 
-# Historical win probabilities for model1
 def calculate_probabilities_v1(home, away, data):
     h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
     if h2h.empty:
@@ -87,7 +84,6 @@ def calculate_probabilities_v1(home, away, data):
         "Away Team Win": (h2h['FTR'] == 'A').sum() / total * 100,
     }
 
-# Historical win probabilities for model2
 def calculate_probabilities_v2(home, away, data):
     h2h = data[(data['Home'] == home) & (data['Away'] == away)]
     if h2h.empty:
@@ -99,7 +95,6 @@ def calculate_probabilities_v2(home, away, data):
         "Away Team Win": (h2h['Res'] == 'A').sum() / total * 100,
     }
 
-# Final decision blending model and stats
 def determine_final_prediction(pred, probs):
     if 0.5 <= pred <= 1.4:
         model_outcome = "Home Team Win"
@@ -117,15 +112,13 @@ def determine_final_prediction(pred, probs):
         return f"{model_outcome} or {tied[1]}" if tied[1] != model_outcome else f"{tied[0]} or {model_outcome}"
     return f"{model_outcome} or {highest}"
 
-# Predict_proba model confidence
 def predict_with_confidence(model, input_df):
     try:
         proba = model.predict_proba(input_df)[0]
-        return proba  # e.g. [0.6, 0.25, 0.15]
+        return proba
     except:
         return None
 
-# Get head-to-head match history
 def get_head_to_head_history(home, away, data, version="v1"):
     if version == "v1":
         h2h = data[(data['HomeTeam'] == home) & (data['AwayTeam'] == away)]
@@ -138,7 +131,6 @@ def get_head_to_head_history(home, away, data, version="v1"):
             h2h['Date'] = pd.to_datetime(h2h['Date'], errors='coerce')
         return h2h[['Date', 'Res']].dropna()
 
-# ✅ Recent general form (not H2H)
 def get_recent_team_form(home, away, data, version="v1"):
     if version == "v1":
         home_matches = data[data['HomeTeam'] == home].sort_values(by='Date', ascending=False).head(5)
@@ -152,7 +144,6 @@ def get_recent_team_form(home, away, data, version="v1"):
         away_form = "".join(away_matches['Res'].fillna("-").values)
     return home_form, away_form
 
-# ✅ New: Refined Head-to-Head Team Form (W/D/L format for each team)
 def get_head_to_head_form(home_team, away_team, data, version="v1"):
     if version == "v2":
         home_col, away_col, result_col = "Home", "Away", "Res"
@@ -174,19 +165,53 @@ def get_head_to_head_form(home_team, away_team, data, version="v1"):
         result = row[result_col]
         h, a = row[home_col], row[away_col]
 
-        # Home team form
         if home_team == h:
             home_form.append("W" if result == "H" else "D" if result == "D" else "L")
         elif home_team == a:
             home_form.append("W" if result == "A" else "D" if result == "D" else "L")
 
-        # Away team form
         if away_team == h:
             away_form.append("W" if result == "H" else "D" if result == "D" else "L")
         elif away_team == a:
             away_form.append("W" if result == "A" else "D" if result == "D" else "L")
 
     return "".join(home_form), "".join(away_form)
+
+# ✅ NEW: Team's recent form (last 5 matches) from perspective of W/D/L
+def get_team_recent_form(team_name, data, version="v1"):
+    """
+    Returns a team's recent form (last 5 matches) in terms of W/D/L,
+    based on whether they played at home or away.
+    """
+    if version == "v2":
+        home_col, away_col, result_col = "Home", "Away", "Res"
+    else:
+        home_col, away_col, result_col = "HomeTeam", "AwayTeam", "FTR"
+
+    if not all(col in data.columns for col in [home_col, away_col, result_col, "Date"]):
+        return "❗ Missing required columns"
+
+    df = data[[home_col, away_col, result_col, "Date"]].copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"])
+
+    recent_matches = df[(df[home_col] == team_name) | (df[away_col] == team_name)]
+    recent_matches = recent_matches.sort_values("Date", ascending=False).head(5)
+
+    form = []
+    for _, row in recent_matches.iterrows():
+        result = row[result_col]
+        is_home = row[home_col] == team_name
+
+        if result == "D":
+            form.append("D")
+        elif (result == "H" and is_home) or (result == "A" and not is_home):
+            form.append("W")
+        else:
+            form.append("L")
+
+    return "".join(form)
+
 
 
 
