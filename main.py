@@ -16,7 +16,7 @@ from backend import (
     compute_mean_for_teams_v1, compute_mean_for_teams_v2,
     calculate_probabilities_v1, calculate_probabilities_v2,
     determine_final_prediction, predict_with_confidence,
-    get_recent_team_form, get_head_to_head_history
+    get_head_to_head_history, get_team_recent_form  # ✅ updated import
 )
 from leagues import leagues
 
@@ -24,11 +24,14 @@ st.set_page_config(page_title="Football Predictor", layout="centered")
 
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
 st.markdown('<div class="title">⚽ FOOTBALL PREDICTION APP</div>', unsafe_allow_html=True)
 
+# Load models and data
 model1, model2 = download_models()
 data1, data2 = load_data()
 
+# League and team selection
 category = st.selectbox("Select Category", list(leagues.keys()))
 league = st.selectbox("Select a League", list(leagues[category].keys()))
 teams = leagues[category][league]
@@ -38,6 +41,7 @@ away_team = st.selectbox("Select Away Team", teams)
 if "prediction_made" not in st.session_state:
     st.session_state.prediction_made = False
 
+# Run prediction
 if st.button("🔮 Predict Match Outcome"):
     version = "v2" if category == "Others" else "v1"
     data = data2 if version == "v2" else data1
@@ -47,6 +51,7 @@ if st.button("🔮 Predict Match Outcome"):
 
     input_data = compute_mean(home_team, away_team, data, model)
     probs = calculate_probs(home_team, away_team, data)
+
     if input_data is None or probs is None:
         st.warning("⚠️ Not enough historical data available for prediction.")
         st.session_state.prediction_made = False
@@ -54,7 +59,11 @@ if st.button("🔮 Predict Match Outcome"):
         pred = model.predict(input_data)[0]
         final = determine_final_prediction(pred, probs)
         conf = predict_with_confidence(model, input_data)
-        home_form, away_form = get_recent_team_form(home_team, away_team, data, version=version)
+
+        # ✅ Use updated function for full team form
+        home_form = get_team_recent_form(home_team, data, version=version)
+        away_form = get_team_recent_form(away_team, data, version=version)
+
         head_to_head = get_head_to_head_history(home_team, away_team, data, version=version)
 
         st.session_state.prediction_made = True
@@ -65,7 +74,7 @@ if st.button("🔮 Predict Match Outcome"):
         st.session_state.away_form = away_form
         st.session_state.h2h = head_to_head
 
-# Show prediction and dropdown if prediction was made
+# Show results if prediction has been made
 if st.session_state.get("prediction_made", False):
     st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {st.session_state.final}</div>', unsafe_allow_html=True)
 
@@ -109,9 +118,9 @@ if st.session_state.get("prediction_made", False):
         )
 
     elif selected_view == "Recent Team Form":
-        st.subheader("📈 Recent Team Form")
-        st.markdown(f"**{home_team}** (Last 5 Home Games): `{st.session_state.home_form}`")
-        st.markdown(f"**{away_team}** (Last 5 Away Games): `{st.session_state.away_form}`")
+        st.subheader("📈 Recent Team Form (Last 5 Matches)")
+        st.markdown(f"**{home_team}**: `{st.session_state.home_form}`")
+        st.markdown(f"**{away_team}**: `{st.session_state.away_form}`")
 
     elif selected_view == "Head-to-Head History" and not st.session_state.h2h.empty:
         st.subheader("🔁 Head-to-Head Results")
