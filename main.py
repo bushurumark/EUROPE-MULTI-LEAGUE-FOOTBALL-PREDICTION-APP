@@ -13,10 +13,10 @@ import streamlit as st
 import plotly.express as px
 from backend import (
     download_models, load_data,
-    compute_mean_for_teams_v1, compute_mean_for_teams_v2,
-    calculate_probabilities_v1, calculate_probabilities_v2,
+    compute_mean_for_teams,
+    calculate_probabilities,
     determine_final_prediction, predict_with_confidence,
-    get_head_to_head_history, get_team_recent_form  # ✅ updated import
+    get_head_to_head_history, get_team_recent_form
 )
 from leagues import leagues
 
@@ -46,11 +46,9 @@ if st.button("🔮 Predict Match Outcome"):
     version = "v2" if category == "Others" else "v1"
     data = data2 if version == "v2" else data1
     model = model2 if version == "v2" else model1
-    compute_mean = compute_mean_for_teams_v2 if version == "v2" else compute_mean_for_teams_v1
-    calculate_probs = calculate_probabilities_v2 if version == "v2" else calculate_probabilities_v1
 
-    input_data = compute_mean(home_team, away_team, data, model)
-    probs = calculate_probs(home_team, away_team, data)
+    input_data = compute_mean_for_teams(home_team, away_team, data, model, version=version)
+    probs = calculate_probabilities(home_team, away_team, data, version=version)
 
     if input_data is None or probs is None:
         st.warning("⚠️ Not enough historical data available for prediction.")
@@ -58,17 +56,15 @@ if st.button("🔮 Predict Match Outcome"):
     else:
         pred = model.predict(input_data)[0]
         final = determine_final_prediction(pred, probs)
-        conf = predict_with_confidence(model, input_data)
+        pred_label, pred_conf, full_conf = predict_with_confidence(model, input_data)
 
-        # ✅ Use updated function for full team form
         home_form = get_team_recent_form(home_team, data, version=version)
         away_form = get_team_recent_form(away_team, data, version=version)
-
         head_to_head = get_head_to_head_history(home_team, away_team, data, version=version)
 
         st.session_state.prediction_made = True
         st.session_state.final = final
-        st.session_state.conf = conf
+        st.session_state.conf = full_conf
         st.session_state.probs = probs
         st.session_state.home_form = home_form
         st.session_state.away_form = away_form
@@ -88,19 +84,19 @@ if st.session_state.get("prediction_made", False):
 
     if selected_view == "Model Confidence" and st.session_state.conf is not None:
         st.subheader("🤖 Model Confidence")
-        labels = ["Home Win", "Draw", "Away Win"]
+        conf_dict = st.session_state.conf
         st.plotly_chart(
             px.bar(
-                x=labels,
-                y=st.session_state.conf,
+                x=list(conf_dict.keys()),
+                y=list(conf_dict.values()),
                 labels={"x": "Outcome", "y": "Confidence"},
                 title="Model Output Probabilities",
-                color=labels,
+                color=list(conf_dict.keys()),
                 color_discrete_map={"Home Win": "green", "Draw": "yellow", "Away Win": "red"}
             )
         )
-        for label, prob in zip(labels, st.session_state.conf):
-            st.markdown(f"**{label}**: {prob * 100:.2f}%")
+        for outcome, prob in conf_dict.items():
+            st.markdown(f"**{outcome}**: {prob * 100:.2f}%")
 
     elif selected_view == "Historical Probabilities" and st.session_state.probs is not None:
         st.subheader("📚 Historical Probabilities")
@@ -135,3 +131,4 @@ if st.session_state.get("prediction_made", False):
         )
         st.plotly_chart(fig)
         st.dataframe(df[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
+
