@@ -12,14 +12,20 @@ import plotly.express as px
 
 def render_model_confidence(conf_dict):
     st.subheader("🤖 Model Confidence")
+    # Convert to percentage for visualization
+    percent_values = [v * 100 for v in conf_dict.values()]
     st.plotly_chart(
         px.bar(
             x=list(conf_dict.keys()),
-            y=list(conf_dict.values()),
-            labels={"x": "Outcome", "y": "Confidence"},
+            y=percent_values,
+            labels={"x": "Outcome", "y": "Confidence (%)"},
             title="Model Output Probabilities",
             color=list(conf_dict.keys()),
-            color_discrete_map={"Home Win": "green", "Draw": "yellow", "Away Win": "red"}
+            color_discrete_map={
+                "Home Win": "green", 
+                "Draw": "yellow", 
+                "Away Win": "red"
+            }
         )
     )
     for outcome, prob in conf_dict.items():
@@ -27,18 +33,23 @@ def render_model_confidence(conf_dict):
 
 def render_historical_probabilities(probs):
     st.subheader("📚 Historical Probabilities")
-    for outcome, pct in probs.items():
-        st.markdown(f"**{outcome}**: {pct:.2f}%")
+    percent_values = [v for v in probs.values()]
     st.plotly_chart(
         px.bar(
             x=list(probs.keys()),
-            y=list(probs.values()),
+            y=percent_values,
             labels={"x": "Outcome", "y": "Probability (%)"},
             title="Historical Match Outcome Probabilities",
             color=list(probs.keys()),
-            color_discrete_map={"Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"}
+            color_discrete_map={
+                "Home Team Win": "green", 
+                "Draw": "yellow", 
+                "Away Team Win": "red"
+            }
         )
     )
+    for outcome, pct in probs.items():
+        st.markdown(f"**{outcome}**: {pct:.2f}%")
 
 def render_recent_form(home_team, away_team, home_form, away_form):
     st.subheader("📈 Recent Team Form (Last 5 Matches)")
@@ -54,7 +65,11 @@ def render_head_to_head_history(h2h, home_team, away_team):
     fig = px.histogram(
         df, x='Date', color='Result',
         title=f"{home_team} vs {away_team} - Head-to-Head",
-        color_discrete_map={"Home Win": "green", "Draw": "yellow", "Away Win": "red"}
+        color_discrete_map={
+            "Home Win": "green", 
+            "Draw": "yellow", 
+            "Away Win": "red"
+        }
     )
     st.plotly_chart(fig)
     st.dataframe(df[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
