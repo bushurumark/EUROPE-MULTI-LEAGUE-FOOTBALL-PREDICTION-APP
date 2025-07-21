@@ -16,8 +16,8 @@ def align_features(input_df, model):
             input_df[f] = 0
     return input_df[model.feature_names_in_]
 
-def compute_mean_for_teams(home, away, data, model, get_column_names, version="v1"):
-    home_col, away_col, result_col = get_column_names(version)
+def compute_mean_for_teams(home, away, data, model, get_column_names=None, version="v1"):
+    home_col, away_col, result_col = get_column_names(version) if get_column_names else ("HomeTeam", "AwayTeam", "FTR")
     h2h = data[(data[home_col] == home) & (data[away_col] == away)]
     if h2h.empty:
         return None
@@ -34,6 +34,21 @@ def compute_mean_for_teams(home, away, data, model, get_column_names, version="v
             mean['HTR'] = 'A'
     input_df = pd.DataFrame([mean])
     return align_features(input_df, model)
+
+def calculate_probabilities(home, away, data, version="v1"):
+    if version == "v2":
+        home_col, away_col, result_col = "home_team", "away_team", "Res"
+        outcome_map = {"H": "Home Team Win", "D": "Draw", "A": "Away Team Win"}
+    else:
+        home_col, away_col, result_col = "HomeTeam", "AwayTeam", "FTR"
+        outcome_map = {"H": "Home Team Win", "D": "Draw", "A": "Away Team Win"}
+
+    h2h = data[(data[home_col] == home) & (data[away_col] == away)]
+    if h2h.empty:
+        return None
+
+    value_counts = h2h[result_col].value_counts(normalize=True) * 100
+    return {outcome_map.get(k, k): round(v, 2) for k, v in value_counts.items()}
 
 def predict_with_confidence(model, input_df):
     try:
