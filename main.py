@@ -10,18 +10,19 @@ Original file is located at
 #!pip install streamlit
 # main.py
 import streamlit as st
-import plotly.express as px
-from backend import (
-    download_models, load_data,
-    compute_mean_for_teams,
-    calculate_probabilities,
-    determine_final_prediction, predict_with_confidence,
-    get_head_to_head_history, get_team_recent_form
+from data_loader import download_models, load_data
+from controller import run_prediction
+from views import (
+    render_model_confidence,
+    render_historical_probabilities,
+    render_recent_form,
+    render_head_to_head_history
 )
 from leagues import leagues
 
 st.set_page_config(page_title="Football Predictor", layout="centered")
 
+# Custom styles
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
@@ -31,7 +32,7 @@ st.markdown('<div class="title">⚽ FOOTBALL PREDICTION APP</div>', unsafe_allow
 model1, model2 = download_models()
 data1, data2 = load_data()
 
-# League and team selection
+# User input section
 category = st.selectbox("Select Category", list(leagues.keys()))
 league = st.selectbox("Select a League", list(leagues[category].keys()))
 teams = leagues[category][league]
@@ -41,38 +42,34 @@ away_team = st.selectbox("Select Away Team", teams)
 if "prediction_made" not in st.session_state:
     st.session_state.prediction_made = False
 
-# Run prediction
+# Prediction trigger
 if st.button("🔮 Predict Match Outcome"):
     version = "v2" if category == "Others" else "v1"
     data = data2 if version == "v2" else data1
     model = model2 if version == "v2" else model1
 
-    input_data = compute_mean_for_teams(home_team, away_team, data, model, version=version)
-    probs = calculate_probabilities(home_team, away_team, data, version=version)
+    final, full_conf, probs, home_form, away_form, h2h = run_prediction(
+        home_team, away_team, model, data, version
+    )
 
-    if input_data is None or probs is None:
+    if final is None:
         st.warning("⚠️ Not enough historical data available for prediction.")
         st.session_state.prediction_made = False
     else:
-        pred = model.predict(input_data)[0]
-        final = determine_final_prediction(pred, probs)
-        pred_label, pred_conf, full_conf = predict_with_confidence(model, input_data)
-
-        home_form = get_team_recent_form(home_team, data, version=version)
-        away_form = get_team_recent_form(away_team, data, version=version)
-        head_to_head = get_head_to_head_history(home_team, away_team, data, version=version)
-
         st.session_state.prediction_made = True
         st.session_state.final = final
         st.session_state.conf = full_conf
         st.session_state.probs = probs
         st.session_state.home_form = home_form
         st.session_state.away_form = away_form
-        st.session_state.h2h = head_to_head
+        st.session_state.h2h = h2h
 
-# Show results if prediction has been made
+# Output section
 if st.session_state.get("prediction_made", False):
-    st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {st.session_state.final}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="prediction-result">🏆 Final Prediction: {st.session_state.final}</div>',
+        unsafe_allow_html=True
+    )
 
     selected_view = st.selectbox("📊 View More Match Statistics", [
         "Select an option...",
@@ -83,52 +80,14 @@ if st.session_state.get("prediction_made", False):
     ])
 
     if selected_view == "Model Confidence" and st.session_state.conf is not None:
-        st.subheader("🤖 Model Confidence")
-        conf_dict = st.session_state.conf
-        st.plotly_chart(
-            px.bar(
-                x=list(conf_dict.keys()),
-                y=list(conf_dict.values()),
-                labels={"x": "Outcome", "y": "Confidence"},
-                title="Model Output Probabilities",
-                color=list(conf_dict.keys()),
-                color_discrete_map={"Home Win": "green", "Draw": "yellow", "Away Win": "red"}
-            )
-        )
-        for outcome, prob in conf_dict.items():
-            st.markdown(f"**{outcome}**: {prob * 100:.2f}%")
+        render_model_confidence(st.session_state.conf)
 
     elif selected_view == "Historical Probabilities" and st.session_state.probs is not None:
-        st.subheader("📚 Historical Probabilities")
-        for outcome, pct in st.session_state.probs.items():
-            st.markdown(f"**{outcome}**: {pct:.2f}%")
-        st.plotly_chart(
-            px.bar(
-                x=list(st.session_state.probs.keys()),
-                y=list(st.session_state.probs.values()),
-                labels={"x": "Outcome", "y": "Probability (%)"},
-                title="Historical Match Outcome Probabilities",
-                color=list(st.session_state.probs.keys()),
-                color_discrete_map={"Home Team Win": "green", "Draw": "yellow", "Away Team Win": "red"}
-            )
-        )
+        render_historical_probabilities(st.session_state.probs)
 
     elif selected_view == "Recent Team Form":
-        st.subheader("📈 Recent Team Form (Last 5 Matches)")
-        st.markdown(f"**{home_team}**: `{st.session_state.home_form}`")
-        st.markdown(f"**{away_team}**: `{st.session_state.away_form}`")
+        render_recent_form(home_team, away_team, st.session_state.home_form, st.session_state.away_form)
 
     elif selected_view == "Head-to-Head History" and not st.session_state.h2h.empty:
-        st.subheader("🔁 Head-to-Head Results")
-        df = st.session_state.h2h.copy()
-        result_col = 'FTR' if 'FTR' in df.columns else 'Res'
-        result_map = {'H': 'Home Win', 'D': 'Draw', 'A': 'Away Win'}
-        df['Result'] = df[result_col].map(result_map)
-        fig = px.histogram(
-            df, x='Date', color='Result',
-            title=f"{home_team} vs {away_team} - Head-to-Head",
-            color_discrete_map={"Home Win": "green", "Draw": "yellow", "Away Win": "red"}
-        )
-        st.plotly_chart(fig)
-        st.dataframe(df[['Date', 'Result']].sort_values(by='Date', ascending=False).reset_index(drop=True))
+        render_head_to_head_history(st.session_state.h2h, home_team, away_team)
 
