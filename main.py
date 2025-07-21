@@ -9,6 +9,7 @@ Original file is located at
 
 #!pip install streamlit
 # main.py
+# main.py
 import streamlit as st
 from data_loader import download_models, load_data
 from controller import run_prediction
@@ -19,30 +20,20 @@ from views import (
     render_head_to_head_history
 )
 from leagues import leagues
+from helpers import initialize_app, get_user_input, initialize_session
 
-st.set_page_config(page_title="Football Predictor", layout="centered")
-
-# Custom styles
-with open("style.css") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-st.markdown('<div class="title">⚽ FOOTBALL PREDICTION APP</div>', unsafe_allow_html=True)
+# App setup
+initialize_app()
+initialize_session()
 
 # Load models and data
 model1, model2 = download_models()
 data1, data2 = load_data()
 
-# User input section
-category = st.selectbox("Select Category", list(leagues.keys()))
-league = st.selectbox("Select a League", list(leagues[category].keys()))
-teams = leagues[category][league]
-home_team = st.selectbox("Select Home Team", teams)
-away_team = st.selectbox("Select Away Team", teams)
+# User inputs
+category, league, home_team, away_team = get_user_input(leagues)
 
-if "prediction_made" not in st.session_state:
-    st.session_state.prediction_made = False
-
-# Prediction trigger
+# Prediction logic
 if st.button("🔮 Predict Match Outcome"):
     version = "v2" if category == "Others" else "v1"
     data = data2 if version == "v2" else data1
@@ -64,7 +55,7 @@ if st.button("🔮 Predict Match Outcome"):
         st.session_state.away_form = away_form
         st.session_state.h2h = h2h
 
-# Output section
+# Output rendering
 if st.session_state.get("prediction_made", False):
     st.markdown(
         f'<div class="prediction-result">🏆 Final Prediction: {st.session_state.final}</div>',
