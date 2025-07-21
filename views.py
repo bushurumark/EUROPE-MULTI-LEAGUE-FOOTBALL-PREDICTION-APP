@@ -12,42 +12,46 @@ import plotly.express as px
 
 def render_model_confidence(conf_dict):
     st.subheader("🤖 Model Confidence")
-    # Convert to percentage for visualization
-    percent_values = [v * 100 for v in conf_dict.values()]
-    st.plotly_chart(
-        px.bar(
-            x=list(conf_dict.keys()),
-            y=percent_values,
-            labels={"x": "Outcome", "y": "Confidence (%)"},
-            title="Model Output Probabilities",
-            color=list(conf_dict.keys()),
-            color_discrete_map={
-                "Home Win": "green", 
-                "Draw": "yellow", 
-                "Away Win": "red"
-            }
-        )
+    # Convert to DataFrame
+    df = pd.DataFrame({
+        "Outcome": list(conf_dict.keys()),
+        "Confidence (%)": [v * 100 for v in conf_dict.values()]
+    })
+    fig = px.bar(
+        df,
+        x="Outcome",
+        y="Confidence (%)",
+        title="Model Output Probabilities",
+        color="Outcome",
+        color_discrete_map={
+            "Home Win": "green",
+            "Draw": "yellow",
+            "Away Win": "red"
+        }
     )
+    st.plotly_chart(fig)
     for outcome, prob in conf_dict.items():
         st.markdown(f"**{outcome}**: {prob * 100:.2f}%")
 
 def render_historical_probabilities(probs):
     st.subheader("📚 Historical Probabilities")
-    percent_values = [v for v in probs.values()]
-    st.plotly_chart(
-        px.bar(
-            x=list(probs.keys()),
-            y=percent_values,
-            labels={"x": "Outcome", "y": "Probability (%)"},
-            title="Historical Match Outcome Probabilities",
-            color=list(probs.keys()),
-            color_discrete_map={
-                "Home Team Win": "green", 
-                "Draw": "yellow", 
-                "Away Team Win": "red"
-            }
-        )
+    df = pd.DataFrame({
+        "Outcome": list(probs.keys()),
+        "Probability (%)": [v for v in probs.values()]
+    })
+    fig = px.bar(
+        df,
+        x="Outcome",
+        y="Probability (%)",
+        title="Historical Match Outcome Probabilities",
+        color="Outcome",
+        color_discrete_map={
+            "Home Team Win": "green",
+            "Draw": "yellow",
+            "Away Team Win": "red"
+        }
     )
+    st.plotly_chart(fig)
     for outcome, pct in probs.items():
         st.markdown(f"**{outcome}**: {pct:.2f}%")
 
