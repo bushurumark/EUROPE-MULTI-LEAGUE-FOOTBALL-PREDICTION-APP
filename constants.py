@@ -9,5 +9,5 @@ Original file is located at
 
 MODEL1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model1.pkl"
 MODEL2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model2.pkl"
-DATA1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data1.csv"
+DATA1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data1.xlsx"
 DATA2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data2.csv"
