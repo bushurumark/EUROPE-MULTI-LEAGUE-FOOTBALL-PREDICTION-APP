@@ -10,42 +10,21 @@ Original file is located at
 import pandas as pd
 import logging
 
-# Define column mappings per dataset version
-def get_column_names(version="v1"):
-    if version == "v1":
-        return "Home", "Away", "Res"
-    elif version == "v2":
-        return "home_team", "away_team", "Res"
-    else:
-        raise ValueError(f"Unknown version: {version}")
-
-# Align input features to model expectations
 def align_features(input_df, model):
-    for feature in model.feature_names_in_:
-        if feature not in input_df:
-            input_df[feature] = 0
+    for f in model.feature_names_in_:
+        if f not in input_df:
+            input_df[f] = 0
     return input_df[model.feature_names_in_]
 
-# Compute feature means for head-to-head matches
 def compute_mean_for_teams(home, away, data, model, get_column_names=None, version="v1"):
-    home_col, away_col, result_col = get_column_names(version) if get_column_names else ("Home", "Away", "Res")
-    
-    # Filter head-to-head records
+    home_col, away_col, result_col = get_column_names(version) if get_column_names else ("HomeTeam", "AwayTeam", "FTR")
     h2h = data[(data[home_col] == home) & (data[away_col] == away)]
     if h2h.empty:
         return None
-
-    # Drop non-numeric or irrelevant columns
     h2h = h2h.drop(columns=[result_col, "Date", "Country", "League", "Season", "Time"], errors='ignore')
-
-    # Optional transformation if using halftime result (HTR)
     if version == "v1" and 'HTR' in h2h:
         h2h['HTR'] = h2h['HTR'].replace({'H': 1, 'D': 2, 'A': 3})
-
-    # Compute numeric mean
     mean = h2h.mean(numeric_only=True)
-
-    # Convert averaged HTR back to categorical if present
     if 'HTR' in mean:
         if 0 <= mean['HTR'] <= 1.4:
             mean['HTR'] = 'H'
@@ -53,14 +32,16 @@ def compute_mean_for_teams(home, away, data, model, get_column_names=None, versi
             mean['HTR'] = 'D'
         elif 2.5 <= mean['HTR'] <= 3.4:
             mean['HTR'] = 'A'
-
     input_df = pd.DataFrame([mean])
     return align_features(input_df, model)
 
-# Calculate head-to-head result probabilities
 def calculate_probabilities(home, away, data, version="v1"):
-    home_col, away_col, result_col = get_column_names(version)
-    outcome_map = {"H": "Home Team Win", "D": "Draw", "A": "Away Team Win"}
+    if version == "v2":
+        home_col, away_col, result_col = "home_team", "away_team", "Res"
+        outcome_map = {"H": "Home Team Win", "D": "Draw", "A": "Away Team Win"}
+    else:
+        home_col, away_col, result_col = "HomeTeam", "AwayTeam", "FTR"
+        outcome_map = {"H": "Home Team Win", "D": "Draw", "A": "Away Team Win"}
 
     h2h = data[(data[home_col] == home) & (data[away_col] == away)]
     if h2h.empty:
@@ -69,7 +50,6 @@ def calculate_probabilities(home, away, data, version="v1"):
     value_counts = h2h[result_col].value_counts(normalize=True) * 100
     return {outcome_map.get(k, k): round(v, 2) for k, v in value_counts.items()}
 
-# Run model prediction and extract probabilities
 def predict_with_confidence(model, input_df):
     try:
         proba = model.predict_proba(input_df)[0]
@@ -80,7 +60,6 @@ def predict_with_confidence(model, input_df):
         logging.error(f"Prediction error: {e}")
         return None, None, None
 
-# Determine the final predicted outcome, blending confidence and top probabilities
 def determine_final_prediction(pred, probs):
     if 0.5 <= pred <= 1.4:
         model_outcome = "Home Team Win"
@@ -92,12 +71,11 @@ def determine_final_prediction(pred, probs):
         return "❗ Invalid prediction"
 
     highest = max(probs, key=probs.get)
-
     if model_outcome == highest:
         return model_outcome
 
     tied = [k for k, v in probs.items() if v == probs[highest]]
     if len(tied) > 1:
         return f"{model_outcome} or {tied[1]}" if tied[1] != model_outcome else f"{tied[0]} or {model_outcome}"
-    
+    return f"{model_outcome} or {highest}"
     return f"{model_outcome} or {highest}"
