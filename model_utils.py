@@ -9,43 +9,23 @@ Original file is located at
 
 import pandas as pd
 import logging
+from analytics import get_column_names  # ✅ import the helper
 
-# Unified column selector based on version
-def get_column_names(version="v1"):
-    if version == "v1":
-        return "HomeTeam", "AwayTeam", "FTR"
-    elif version == "v2":
-        return "Home", "Away", "Res"
-    else:
-        raise ValueError(f"Unknown version: {version}")
-
-# Align input features to model's expected input
 def align_features(input_df, model):
-    for feature in model.feature_names_in_:
-        if feature not in input_df:
-            input_df[feature] = 0
+    for f in model.feature_names_in_:
+        if f not in input_df:
+            input_df[f] = 0
     return input_df[model.feature_names_in_]
 
-# Compute average stats for home vs away team
-def compute_mean_for_teams(home, away, data, model, get_column_names=None, version="v1"):
-    home_col, away_col, result_col = get_column_names(version) if get_column_names else ("HomeTeam", "AwayTeam", "FTR")
-
-    try:
-        h2h = data[(data[home_col] == home) & (data[away_col] == away)]
-    except KeyError as e:
-        raise KeyError(f"Missing expected column '{e.args[0]}' in the dataset.")
-
+def compute_mean_for_teams(home, away, data, model, version="v1"):
+    home_col, away_col, result_col = get_column_names(version)  # ✅ dynamic columns
+    h2h = data[(data[home_col] == home) & (data[away_col] == away)]
     if h2h.empty:
         return None
-
-    # Drop irrelevant or non-numeric columns
     h2h = h2h.drop(columns=[result_col, "Date", "Country", "League", "Season", "Time"], errors='ignore')
-
     if version == "v1" and 'HTR' in h2h:
         h2h['HTR'] = h2h['HTR'].replace({'H': 1, 'D': 2, 'A': 3})
-
     mean = h2h.mean(numeric_only=True)
-
     if 'HTR' in mean:
         if 0 <= mean['HTR'] <= 1.4:
             mean['HTR'] = 'H'
@@ -53,27 +33,18 @@ def compute_mean_for_teams(home, away, data, model, get_column_names=None, versi
             mean['HTR'] = 'D'
         elif 2.5 <= mean['HTR'] <= 3.4:
             mean['HTR'] = 'A'
-
     input_df = pd.DataFrame([mean])
     return align_features(input_df, model)
 
-# Calculate outcome probabilities from historical results
 def calculate_probabilities(home, away, data, version="v1"):
-    home_col, away_col, result_col = get_column_names(version)
+    home_col, away_col, result_col = get_column_names(version)  # ✅ dynamic columns
     outcome_map = {"H": "Home Team Win", "D": "Draw", "A": "Away Team Win"}
-
-    try:
-        h2h = data[(data[home_col] == home) & (data[away_col] == away)]
-    except KeyError as e:
-        raise KeyError(f"Missing expected column '{e.args[0]}' in the dataset.")
-
+    h2h = data[(data[home_col] == home) & (data[away_col] == away)]
     if h2h.empty:
         return None
-
     value_counts = h2h[result_col].value_counts(normalize=True) * 100
     return {outcome_map.get(k, k): round(v, 2) for k, v in value_counts.items()}
 
-# Run prediction and extract confidence scores
 def predict_with_confidence(model, input_df):
     try:
         proba = model.predict_proba(input_df)[0]
@@ -84,7 +55,6 @@ def predict_with_confidence(model, input_df):
         logging.error(f"Prediction error: {e}")
         return None, None, None
 
-# Blend model prediction with probability distribution to finalize decision
 def determine_final_prediction(pred, probs):
     if 0.5 <= pred <= 1.4:
         model_outcome = "Home Team Win"
@@ -103,3 +73,4 @@ def determine_final_prediction(pred, probs):
     if len(tied) > 1:
         return f"{model_outcome} or {tied[1]}" if tied[1] != model_outcome else f"{tied[0]} or {model_outcome}"
     return f"{model_outcome} or {highest}"
+
