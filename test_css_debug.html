@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .form-indicator {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 4px;
+            text-align: center;
+            line-height: 24px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .form-indicator:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .form-win {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+            color: white !important;
+            border: 1px solid #15803d !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        .form-draw {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+            color: white !important;
+            border: 1px solid #b45309 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        .form-loss {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+            color: white !important;
+            border: 1px solid #b91c1c !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        .debug-info {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 CSS Debug Test</h1>
+        
+        <div class="test-section">
+            <h3>Static Test (Should Show Colors):</h3>
+            <div>
+                <span class="form-indicator form-win">W</span>
+                <span class="form-indicator form-draw">D</span>
+                <span class="form-indicator form-loss">L</span>
+                <span class="form-indicator form-win">W</span>
+                <span class="form-indicator form-draw">D</span>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Dynamic Test (JavaScript Generated):</h3>
+            <div id="dynamic-form"></div>
+            <button onclick="testDynamicForm()">Test Dynamic Form</button>
+        </div>
+        
+        <div class="debug-info">
+            <strong>Debug Info:</strong><br>
+            - Green W = Win (should be green background)<br>
+            - Orange D = Draw (should be orange background)<br>
+            - Red L = Loss (should be red background)<br>
+            - If you see all same color, CSS is not working<br>
+            - Check browser console for errors
+        </div>
+        
+        <div class="test-section">
+            <h3>Instructions:</h3>
+            <ol>
+                <li>Check if the static test shows different colors</li>
+                <li>Click "Test Dynamic Form" to test JavaScript</li>
+                <li>If colors work here but not in main app, it's a caching issue</li>
+                <li>If colors don't work here, it's a CSS issue</li>
+                <li>Open browser console (F12) to check for errors</li>
+            </ol>
+        </div>
+        
+        <div class="test-section">
+            <h3>CSS Check:</h3>
+            <div id="css-check"></div>
+        </div>
+    </div>
+    
+    <script>
+        function testDynamicForm() {
+            const container = document.getElementById('dynamic-form');
+            container.innerHTML = '';
+            
+            const formData = 'WDLWW';
+            console.log('Creating dynamic form for:', formData);
+            
+            for (let i = 0; i < formData.length; i++) {
+                const result = formData[i];
+                const indicator = document.createElement('span');
+                indicator.className = 'form-indicator';
+                
+                console.log('Processing result:', result);
+                
+                if (result === 'W') {
+                    indicator.classList.add('form-win');
+                    indicator.textContent = 'W';
+                    console.log('Added W with form-win class');
+                } else if (result === 'D') {
+                    indicator.classList.add('form-draw');
+                    indicator.textContent = 'D';
+                    console.log('Added D with form-draw class');
+                } else if (result === 'L') {
+                    indicator.classList.add('form-loss');
+                    indicator.textContent = 'L';
+                    console.log('Added L with form-loss class');
+                } else {
+                    indicator.textContent = result;
+                    console.log('Added unknown result:', result);
+                }
+                
+                container.appendChild(indicator);
+            }
+            
+            console.log('Dynamic form created');
+        }
+        
+        function checkCSS() {
+            const cssCheck = document.getElementById('css-check');
+            const testElement = document.createElement('span');
+            testElement.className = 'form-indicator form-win';
+            testElement.textContent = 'TEST';
+            testElement.style.position = 'absolute';
+            testElement.style.left = '-9999px';
+            document.body.appendChild(testElement);
+            
+            const computedStyle = window.getComputedStyle(testElement);
+            const backgroundColor = computedStyle.backgroundColor;
+            const color = computedStyle.color;
+            
+            cssCheck.innerHTML = `
+                <strong>CSS Check Results:</strong><br>
+                Background Color: ${backgroundColor}<br>
+                Text Color: ${color}<br>
+                Form Win Class Applied: ${testElement.classList.contains('form-win')}<br>
+                Form Indicator Class Applied: ${testElement.classList.contains('form-indicator')}
+            `;
+            
+            document.body.removeChild(testElement);
+        }
+        
+        // Run CSS check when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            checkCSS();
+        });
+    </script>
+</body>
+</html> 

@@ -17,20 +17,152 @@ from analytics import (
     get_team_recent_form,
     get_head_to_head_history
 )
+import pandas as pd
 
 def run_prediction(home_team, away_team, model, data, version):
-    input_data = compute_mean_for_teams(home_team, away_team, data, model, version=version)
-    probs = calculate_probabilities(home_team, away_team, data, version=version)
-
-    if input_data is None or probs is None:
-        return None, None, None, None, None, None
-
-    pred = model.predict(input_data)[0]
-    final = determine_final_prediction(pred, probs)
-    pred_label, pred_conf, full_conf = predict_with_confidence(model, input_data)
-
+    """Run prediction for a match, with comprehensive data sufficiency check.
+    
+    Args:
+        home_team: Home team name
+        away_team: Away team name
+        model: Trained model
+        data: Historical match data
+        version: Data version
+        
+    Returns:
+        Tuple of (prediction, confidence, probabilities, home_form, away_form, head_to_head, has_sufficient_data, reasons)
+    """
+    # Validate team names
+    if not home_team or not away_team:
+        return None, 0.0, None, "", "", pd.DataFrame(), False, ["Please select both home and away teams"]
+    
+    if home_team == away_team:
+        return None, 0.0, None, "", "", pd.DataFrame(), False, ["Home and away teams cannot be the same"]
+    
+    # Check if teams have sufficient data
     home_form = get_team_recent_form(home_team, data, version=version)
     away_form = get_team_recent_form(away_team, data, version=version)
     head_to_head = get_head_to_head_history(home_team, away_team, data, version=version)
 
-    return final, full_conf, probs, home_form, away_form, head_to_head
+    # Check data sufficiency
+    has_sufficient_data = True
+    insufficient_data_reasons = []
+    
+    # Check if teams exist in dataset and have form data
+    if home_form is None or home_form == "":
+        has_sufficient_data = False
+        insufficient_data_reasons.append(f"{home_team} not found in dataset")
+    
+    if away_form is None or away_form == "":
+        has_sufficient_data = False
+        insufficient_data_reasons.append(f"{away_team} not found in dataset")
+    
+    # Check if form data is meaningful (not just empty or default)
+    if home_form and len(home_form) < 3:  # Need at least 3 matches for meaningful form
+        has_sufficient_data = False
+        insufficient_data_reasons.append(f"Insufficient recent form data for {home_team}")
+    
+    if away_form and len(away_form) < 3:  # Need at least 3 matches for meaningful form
+        has_sufficient_data = False
+        insufficient_data_reasons.append(f"Insufficient recent form data for {away_team}")
+    
+    # Additional check for empty form strings
+    if home_form == "":
+        has_sufficient_data = False
+        insufficient_data_reasons.append(f"No recent form data available for {home_team}")
+    
+    if away_form == "":
+        has_sufficient_data = False
+        insufficient_data_reasons.append(f"No recent form data available for {away_team}")
+    
+    # Check if there's head-to-head data - FIX: Use proper DataFrame empty check
+    if head_to_head is None or (hasattr(head_to_head, 'empty') and head_to_head.empty):
+        insufficient_data_reasons.append("No head-to-head history available")
+    
+    # If insufficient data, return special values
+    if not has_sufficient_data:
+        # Ensure head_to_head is a DataFrame
+        if head_to_head is None:
+            head_to_head = pd.DataFrame()
+        return None, 0.0, None, home_form or "", away_form or "", head_to_head, False, insufficient_data_reasons
+    
+    # Get model features
+    try:
+        input_data = compute_mean_for_teams(home_team, away_team, data, model, version=version)
+    except Exception as e:
+        # Ensure head_to_head is a DataFrame
+        if head_to_head is None:
+            head_to_head = pd.DataFrame()
+        return None, 0.0, None, home_form, away_form, head_to_head, False, [f"Error processing team data: {str(e)}"]
+    
+    # Get probabilities
+    probs = calculate_probabilities(home_team, away_team, data, version=version)
+    
+    # If no historical data, return insufficient data
+    if probs is None:
+        # Ensure head_to_head is a DataFrame
+        if head_to_head is None:
+            head_to_head = pd.DataFrame()
+        return None, 0.0, None, home_form, away_form, head_to_head, False, ["No historical match data available"]
+    
+    # Get prediction directly from model using predict_with_confidence
+    try:
+        predicted_label, confidence_score, all_probabilities = predict_with_confidence(model, input_data)
+        
+        # If prediction failed, return error
+        if predicted_label is None:
+            return None, 0.0, None, home_form, away_form, head_to_head, False, ["Model prediction failed"]
+        
+        # Get the numeric prediction value for determine_final_prediction
+        pred_numeric = model.predict(input_data)[0]
+        
+        # Use determine_final_prediction to get enhanced prediction with multiple outcomes
+        enhanced_prediction = determine_final_prediction(pred_numeric, probs)
+        
+        # Return the enhanced prediction with historical probabilities (for display)
+        return enhanced_prediction, confidence_score, probs, home_form, away_form, head_to_head, True, []
+    except Exception as e:
+        # Ensure head_to_head is a DataFrame
+        if head_to_head is None:
+            head_to_head = pd.DataFrame()
+        return None, 0.0, None, home_form, away_form, head_to_head, False, [f"Error making prediction: {str(e)}"]
+
+def run_ensemble_prediction(home_team, away_team, model1, model2, data1, data2):
+    """Run ensemble prediction using both models.
+    
+    Args:
+        home_team: Home team name
+        away_team: Away team name
+        model1: First trained model
+        model2: Second trained model
+        data1: First dataset
+        data2: Second dataset
+        
+    Returns:
+        Tuple of (prediction, confidence, probabilities, home_form, away_form, head_to_head, has_sufficient_data, reasons)
+    """
+    # Run prediction with model 1
+    result1 = run_prediction(home_team, away_team, model1, data1, "v1")
+    
+    # Run prediction with model 2
+    result2 = run_prediction(home_team, away_team, model2, data2, "v2")
+    
+    if result1 is None and result2 is None:
+        # Both models failed
+        return None, 0.0, None, "", "", pd.DataFrame(), False, ["Both models failed to make predictions"]
+    
+    # If only one model succeeded, use that result
+    if result1 is None:
+        return result2
+    if result2 is None:
+        return result1
+    
+    # Both models succeeded - create ensemble prediction
+    pred1, conf1, prob1, form1_home, form1_away, h2h1, has_data1, reasons1 = result1
+    pred2, conf2, prob2, form2_home, form2_away, h2h2, has_data2, reasons2 = result2
+    
+    # Use the model with higher confidence
+    if conf1 >= conf2:
+        return result1
+    else:
+        return result2

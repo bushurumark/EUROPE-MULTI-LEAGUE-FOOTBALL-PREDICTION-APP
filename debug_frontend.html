@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Historical API</title>
+</head>
+<body>
+    <h1>Debug Historical API</h1>
+    <button onclick="testAPI()">Test Historical API</button>
+    <div id="result"></div>
+
+    <script>
+        function testAPI() {
+            const homeTeam = 'Viborg';
+            const awayTeam = 'Brondby';
+            
+            console.log('Testing API with:', homeTeam, 'vs', awayTeam);
+            
+            fetch(`/api/historical-probabilities/?team1=${encodeURIComponent(homeTeam)}&team2=${encodeURIComponent(awayTeam)}`)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Success! Data:', data);
+                    document.getElementById('result').innerHTML = `
+                        <h3>Success!</h3>
+                        <p>Data source: ${data.data_source}</p>
+                        <p>Team1 win rate: ${data.team1_win_rate}%</p>
+                        <p>Team2 win rate: ${data.team2_win_rate}%</p>
+                        <p>Draw rate: ${data.draw_rate}%</p>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('result').innerHTML = `
+                        <h3>Error!</h3>
+                        <p>${error.message}</p>
+                    `;
+                });
+        }
+    </script>
+</body>
+</html> 

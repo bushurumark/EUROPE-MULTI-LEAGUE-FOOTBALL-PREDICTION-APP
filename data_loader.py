@@ -10,33 +10,28 @@ Original file is located at
 import os
 import pandas as pd
 import joblib
-import requests
 import logging
-from constants import MODEL1_URL, MODEL2_URL, DATA1_URL, DATA2_URL
 
 logging.basicConfig(level=logging.INFO)
 
-def download_file_if_needed(url, filename):
-    if not os.path.exists(filename):
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            with open(filename, "wb") as f:
-                f.write(response.content)
-            logging.info(f"Downloaded {filename}")
-        except requests.RequestException as e:
-            logging.error(f"Failed to download {url}: {e}")
-
 def download_models():
-    download_file_if_needed(MODEL1_URL, "model1.pkl")
-    download_file_if_needed(MODEL2_URL, "model2.pkl")
-    model1 = joblib.load("model1.pkl")
-    model2 = joblib.load("model2.pkl")
-    return model1, model2
+    """Load models from the models directory"""
+    try:
+        model1 = joblib.load("models/model1.pkl")
+        model2 = joblib.load("models/model2.pkl")
+        logging.info("Models loaded successfully")
+        return model1, model2
+    except Exception as e:
+        logging.error(f"Failed to load models: {e}")
+        raise
 
 def load_data():
-    download_file_if_needed(DATA1_URL, "football_data1.csv")
-    download_file_if_needed(DATA2_URL, "football_data2.csv")
-    data1 = pd.read_csv("football_data1.csv")
-    data2 = pd.read_csv("football_data2.csv")
-    return data1, data2
+    """Load data from the data directory"""
+    try:
+        data1 = pd.read_csv("data/football_data1.csv")
+        data2 = pd.read_csv("data/football_data2.csv")
+        logging.info("Data loaded successfully")
+        return data1, data2
+    except Exception as e:
+        logging.error(f"Failed to load data: {e}")
+        raise

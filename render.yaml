@@ -1,9 +1,0 @@
-services:
-  - type: web                    # It's a web app (not a background worker)
-    name: football-predictor    # The name of your deployed service
-    runtime: python             # Runtime environment
-    buildCommand: pip install -r requirements.txt  # What to do before starting the app
-    startCommand: streamlit run main.py            # How to start the app
-    envVars:                    # Optional environment variables
-      - key: PYTHON_VERSION
-        value: 3.10
