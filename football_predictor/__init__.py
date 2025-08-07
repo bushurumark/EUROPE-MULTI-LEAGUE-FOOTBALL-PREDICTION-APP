@@ -1,1 +1,0 @@
-# Football Predictor Django App
