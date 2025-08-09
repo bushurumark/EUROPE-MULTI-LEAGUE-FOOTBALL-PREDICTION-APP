@@ -28,15 +28,15 @@ def download_file_if_needed(url, filename):
             logging.error(f"Failed to download {url}: {e}")
 
 def download_models():
-    download_file_if_needed(MODEL1_URL, "model1.pkl")
-    download_file_if_needed(MODEL2_URL, "model2.pkl")
+    download_file_if_needed(MODEL1_URL, "Models/model1.pkl")
+    download_file_if_needed(MODEL2_URL, "models/model2.pkl")
     model1 = joblib.load("model1.pkl")
     model2 = joblib.load("model2.pkl")
     return model1, model2
 
 def load_data():
-    download_file_if_needed(DATA1_URL, "football_data1.csv")
-    download_file_if_needed(DATA2_URL, "football_data2.csv")
+    download_file_if_needed(DATA1_URL, "Datasets/football_data1.csv")
+    download_file_if_needed(DATA2_URL, "Datasets/football_data2.csv")
     data1 = pd.read_csv("football_data1.csv")
     data2 = pd.read_csv("football_data2.csv")
     return data1, data2
