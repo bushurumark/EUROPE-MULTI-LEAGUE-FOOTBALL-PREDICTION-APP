@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1G7NzPgDSNjr5CuhTUk54mkhNaUUulW7i
 """
 
-MODEL1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model1.pkl"
-MODEL2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Models/model2.pkl"
-DATA1_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data1.csv"
-DATA2_URL = "https://raw.githubusercontent.com/bushurumark/EUROPE-MULTI-LEAGUE-FOOTBALL-PREDICTION-APP/main/Datasets/football_data2.csv"
+MODEL1_URL = model1.pkl
+MODEL2_URL = model2.pkl
+DATA1_URL =  football_data1.csv
+DATA2_URL =  football_data2.csv
