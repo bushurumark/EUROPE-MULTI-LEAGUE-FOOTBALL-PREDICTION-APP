@@ -15,13 +15,17 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 from data_loader import download_models, load_data
+from analytics import (
+    calculate_probabilities,
+    get_team_recent_form,
+    get_head_to_head_history,
+    get_column_names
+)
 from model_utils import (
     compute_mean_for_teams,
-    calculate_probabilities,
     determine_final_prediction,
     predict_with_confidence
 )
-from analytics import get_column_names
 from leagues import leagues
 from views import (
     render_model_confidence,
@@ -51,14 +55,16 @@ model1, model2 = models
 def predict_match(home_team, away_team, league_category):
     """Run prediction pipeline for selected teams"""
     version = "v2" if league_category == "Others" else "v1"
-    home_col, away_col, _ = get_column_names(version)
-    
-    # Filter data based on version
-    data = full_data[full_data['League'].isin(leagues[league_category].keys())] if version == "v1" else full_data
     
     # Calculate probabilities and model input
-    probs = calculate_probabilities(home_team, away_team, data, version)
-    input_data = compute_mean_for_teams(home_team, away_team, data, model2 if version == "v2" else model1, get_column_names, version)
+    probs = calculate_probabilities(home_team, away_team, full_data, version)
+    input_data = compute_mean_for_teams(
+        home_team, away_team, 
+        full_data, 
+        model2 if version == "v2" else model1, 
+        get_column_names, 
+        version
+    )
     
     if input_data is None or probs is None:
         return None, None, None, None, None
@@ -69,8 +75,9 @@ def predict_match(home_team, away_team, league_category):
     final = determine_final_prediction(pred, probs)
     
     # Get additional analytics
-    home_form, away_form = get_team_recent_form(home_team, data, version), get_team_recent_form(away_team, data, version)
-    h2h = get_head_to_head_history(home_team, away_team, data, version)
+    home_form = get_team_recent_form(home_team, full_data, version)
+    away_form = get_team_recent_form(away_team, full_data, version)
+    h2h = get_head_to_head_history(home_team, away_team, full_data, version)
     
     return final, probs, home_form, away_form, h2h
 
@@ -85,7 +92,7 @@ if st.button("Predict Match Outcome"):
     with st.spinner("Analyzing match data..."):
         result = predict_match(home_team, away_team, category)
         
-        if None in result:
+        if result[0] is None:
             st.warning("No historical data available for this matchup.")
         else:
             final, probs, home_form, away_form, h2h = result
