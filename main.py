@@ -12,7 +12,6 @@ Original file is located at
 # main.py
 
 import streamlit as st
-import plotly.express as px
 import pandas as pd
 from data_loader import download_models, load_data
 from analytics import (
@@ -23,65 +22,36 @@ from analytics import (
 )
 from model_utils import (
     compute_mean_for_teams,
-    determine_final_prediction,
-    predict_with_confidence
+    determine_final_prediction
 )
 from leagues import leagues
 from views import (
-    render_model_confidence,
     render_historical_probabilities,
     render_recent_form,
     render_head_to_head_history
 )
 
-# Load CSS
+# Load CSS and configure app first
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Configure app
 st.set_page_config(page_title="Football Predictor", layout="centered")
 st.markdown('<div class="title">FOOTBALL PREDICTION APP</div>', unsafe_allow_html=True)
 
-# Initialize data and models
-@st.cache_resource
-def load_resources():
-    models = download_models()
-    data1, data2 = load_data()
-    return models, pd.concat([data1, data2], ignore_index=True)
+# Initialize app silently
+@st.cache_resource(show_spinner=False)
+def load_app_data():
+    with st.spinner(""):
+        models = download_models()
+        data1, data2 = load_data()
+        return models, pd.concat([data1, data2], ignore_index=True)
 
-models, full_data = load_resources()
-model1, model2 = models
+model1, model2, full_data = None, None, None
+with st.spinner("Loading football data..."):
+    models, full_data = load_app_data()
+    model1, model2 = models
 
-def predict_match(home_team, away_team, league_category):
-    """Run prediction pipeline for selected teams"""
-    version = "v2" if league_category == "Others" else "v1"
-    
-    # Calculate probabilities and model input
-    probs = calculate_probabilities(home_team, away_team, full_data, version)
-    input_data = compute_mean_for_teams(
-        home_team, away_team, 
-        full_data, 
-        model2 if version == "v2" else model1, 
-        get_column_names, 
-        version
-    )
-    
-    if input_data is None or probs is None:
-        return None, None, None, None, None
-    
-    # Make prediction
-    model = model2 if version == "v2" else model1
-    pred = model.predict(input_data)[0]
-    final = determine_final_prediction(pred, probs)
-    
-    # Get additional analytics
-    home_form = get_team_recent_form(home_team, full_data, version)
-    away_form = get_team_recent_form(away_team, full_data, version)
-    h2h = get_head_to_head_history(home_team, away_team, full_data, version)
-    
-    return final, probs, home_form, away_form, h2h
-
-# UI Components
+# Main app interface
 category = st.selectbox("Select Category", list(leagues.keys()))
 league = st.selectbox("Select a League", list(leagues[category].keys()))
 teams = leagues[category][league]
@@ -89,19 +59,28 @@ home_team = st.selectbox("Select Home Team", teams)
 away_team = st.selectbox("Select Away Team", [t for t in teams if t != home_team])
 
 if st.button("Predict Match Outcome"):
-    with st.spinner("Analyzing match data..."):
-        result = predict_match(home_team, away_team, category)
-        
-        if result[0] is None:
+    with st.spinner("Analyzing match..."):
+        version = "v2" if category == "Others" else "v1"
+        probs = calculate_probabilities(home_team, away_team, full_data, version)
+        input_data = compute_mean_for_teams(
+            home_team, away_team, full_data,
+            model2 if version == "v2" else model1,
+            get_column_names, version
+        )
+
+        if input_data is None or probs is None:
             st.warning("No historical data available for this matchup.")
         else:
-            final, probs, home_form, away_form, h2h = result
-            
-            # Display results
+            model = model2 if version == "v2" else model1
+            pred = model.predict(input_data)[0]
+            final = determine_final_prediction(pred, probs)
+            home_form = get_team_recent_form(home_team, full_data, version)
+            away_form = get_team_recent_form(away_team, full_data, version)
+            h2h = get_head_to_head_history(home_team, away_team, full_data, version)
+
             st.markdown(f'<div class="prediction-result">🏆 Final Prediction: {final}</div>', 
                        unsafe_allow_html=True)
             
-            # Visualizations
             col1, col2 = st.columns(2)
             with col1:
                 render_historical_probabilities(probs)
