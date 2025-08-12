@@ -10,4 +10,4 @@ Original file is located at
 MODEL1_URL = "Models/model1.pkl"
 MODEL2_URL = "Models/model2.pkl"
 DATA1_URL =  "Datasets/football_data1.csv"
-DATA2_URL =  "Datasets/football_data1.csv"
+DATA2_URL =  "Datasets/football_data2.csv"
