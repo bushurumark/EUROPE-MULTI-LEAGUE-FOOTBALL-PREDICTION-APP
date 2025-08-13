@@ -45,14 +45,14 @@ def predict_with_confidence(model, input_df):
         logging.error(f"Prediction error: {e}")
         return None, None, None
 
-def determine_final_prediction(pred, probs, home_team, away_team):
+def determine_final_prediction(pred, probs):
     # Step 1: Get model prediction
     if 0.5 <= pred <= 1.4:
-        model_outcome = f"{home_team} win"
+        model_outcome = "Home Team Win"
     elif 1.5 <= pred <= 2.4:
         model_outcome = "Draw"
     elif 2.5 <= pred <= 3.4:
-        model_outcome = f"{away_team} win"
+        model_outcome = "Away Team Win"
     else:
         return "❗ Invalid prediction"
 
@@ -60,40 +60,29 @@ def determine_final_prediction(pred, probs, home_team, away_team):
     max_prob = max(probs.values())
     highest_outcomes = [k for k, v in probs.items() if v == max_prob]
 
-    # Convert generic labels to team-specific labels
-    outcome_mapping = {
-        "Home Team Win": f"{home_team} win",
-        "Away Team Win": f"{away_team} win",
-        "Draw": "Draw"
-    }
-    
-    # Convert to team-specific outcomes
-    highest_outcomes = [outcome_mapping.get(outcome, outcome) for outcome in highest_outcomes]
-    model_outcome = outcome_mapping.get(model_outcome, model_outcome)
-
     # Case 1: Clear winner (no tie)
     if len(highest_outcomes) == 1:
         return highest_outcomes[0]
 
     # Case 2: Home & Away are tied
-    if f"{home_team} win" in highest_outcomes and f"{away_team} win" in highest_outcomes:
-        return f"{home_team} or {away_team} win"
+    if "Home Team Win" in highest_outcomes and "Away Team Win" in highest_outcomes:
+        return "Home Team Win or Away Team Win"
 
     # Case 3: Home & Draw are tied
-    if f"{home_team} win" in highest_outcomes and "Draw" in highest_outcomes:
-        if model_outcome == f"{away_team} win":
-            return f"{home_team} win or Draw"
-        return model_outcome if model_outcome in highest_outcomes else f"{home_team} win or Draw"
+    if "Home Team Win" in highest_outcomes and "Draw" in highest_outcomes:
+        if model_outcome == "Away Team Win":
+            return "Home Team Win or Draw"
+        return model_outcome if model_outcome in highest_outcomes else "Home Team Win or Draw"
 
     # Case 4: Away & Draw are tied
-    if f"{away_team} win" in highest_outcomes and "Draw" in highest_outcomes:
-        if model_outcome == f"{home_team} win":
-            return f"{away_team} win or Draw"
-        return model_outcome if model_outcome in highest_outcomes else f"{away_team} win or Draw"
+    if "Away Team Win" in highest_outcomes and "Draw" in highest_outcomes:
+        if model_outcome == "Home Team Win":
+            return "Away Team Win or Draw"
+        return model_outcome if model_outcome in highest_outcomes else "Away Team Win or Draw"
 
     # Case 5: All three outcomes tied (trust model)
     if len(highest_outcomes) == 3:
         return model_outcome
 
-    # Fallback
+    # Fallback (should theoretically never reach here)
     return f"{model_outcome} (Uncertain)"
