@@ -46,6 +46,7 @@ def predict_with_confidence(model, input_df):
         return None, None, None
 
 def determine_final_prediction(pred, probs):
+    # Step 1: Get model prediction
     if 0.5 <= pred <= 1.4:
         model_outcome = "Home Team Win"
     elif 1.5 <= pred <= 2.4:
@@ -55,11 +56,33 @@ def determine_final_prediction(pred, probs):
     else:
         return "❗ Invalid prediction"
 
-    highest = max(probs, key=probs.get)
-    if model_outcome == highest:
+    # Step 2: Find highest probability outcomes
+    max_prob = max(probs.values())
+    highest_outcomes = [k for k, v in probs.items() if v == max_prob]
+
+    # Case 1: Clear winner (no tie)
+    if len(highest_outcomes) == 1:
+        return highest_outcomes[0]
+
+    # Case 2: Home & Away are tied
+    if "Home Team Win" in highest_outcomes and "Away Team Win" in highest_outcomes:
+        return "Home Team Win or Away Team Win"
+
+    # Case 3: Home & Draw are tied
+    if "Home Team Win" in highest_outcomes and "Draw" in highest_outcomes:
+        if model_outcome == "Away Team Win":
+            return "Home Team Win or Draw"
+        return model_outcome if model_outcome in highest_outcomes else "Home Team Win or Draw"
+
+    # Case 4: Away & Draw are tied
+    if "Away Team Win" in highest_outcomes and "Draw" in highest_outcomes:
+        if model_outcome == "Home Team Win":
+            return "Away Team Win or Draw"
+        return model_outcome if model_outcome in highest_outcomes else "Away Team Win or Draw"
+
+    # Case 5: All three outcomes tied (trust model)
+    if len(highest_outcomes) == 3:
         return model_outcome
 
-    tied = [k for k, v in probs.items() if v == probs[highest]]
-    if len(tied) > 1:
-        return f"{model_outcome} or {tied[1]}" if tied[1] != model_outcome else f"{tied[0]} or {model_outcome}"
-    return f"{model_outcome} or {highest}"
+    # Fallback (should theoretically never reach here)
+    return f"{model_outcome} (Uncertain)"
